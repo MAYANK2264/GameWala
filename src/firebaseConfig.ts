@@ -1,7 +1,7 @@
 // src/firebase.ts
 
 import { initializeApp } from 'firebase/app'
-import { getAuth } from 'firebase/auth'
+import { initializeAuth, indexedDBLocalPersistence, getAuth } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
 import { getStorage } from 'firebase/storage'
 import { getAnalytics, isSupported as analyticsIsSupported } from 'firebase/analytics'
@@ -20,8 +20,18 @@ const firebaseConfig = {
 // ✅ Initialize Firebase
 export const app = initializeApp(firebaseConfig)
 
-// ✅ Initialize Firebase services
-export const auth = getAuth(app)
+// ✅ Initialize Firebase Auth with IndexedDB persistence to work in WebViews (Capacitor)
+// If initializeAuth has already been called (hot reload), fall back to getAuth
+let initializedAuth
+try {
+  initializedAuth = initializeAuth(app, { persistence: indexedDBLocalPersistence })
+} catch (_) {
+  // initializeAuth throws if called twice; get existing instance instead
+  initializedAuth = getAuth(app)
+}
+
+// ✅ Export the auth instance
+export const auth = initializedAuth
 export const db = getFirestore(app)
 export const storage = getStorage(app)
 

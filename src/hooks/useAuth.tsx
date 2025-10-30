@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signInWithRedirect, signOut, getRedirectResult, setPersistence, browserLocalPersistence, type User as FirebaseUser } from 'firebase/auth'
+import { Capacitor } from '@capacitor/core'
 import { auth, db } from '../firebaseConfig'
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
 
@@ -69,10 +70,20 @@ export function useAuth() {
     // Always show the Google account chooser
     provider.setCustomParameters({ prompt: 'select_account' })
     try {
+      // On native (Capacitor WebView), avoid redirect because sessionStorage is not preserved
+      if (Capacitor.isNativePlatform()) {
+        await signInWithPopup(auth, provider)
+        return
+      }
       await signInWithPopup(auth, provider)
     } catch (e: any) {
-      // Fallback to redirect if popup blocked or COOP prevents closing
-      await signInWithRedirect(auth, provider)
+      // On web only, fallback to redirect if popup blocked. On native, surface the error to avoid losing state.
+      if (!Capacitor.isNativePlatform()) {
+        await signInWithRedirect(auth, provider)
+        return
+      }
+      console.error('Native popup sign-in failed:', e)
+      throw e
     }
   }, [])
 
