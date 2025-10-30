@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "437107509427",
+    "project_id": "amewala",
+    "storage_bucket": "amewala.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:437107509427:android:0882136f074177dd1cc8c6",
+        "android_client_info": {
+          "package_name": "com.gamewala.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "437107509427-gm37e55kgok80h5p9g79tsl2v4b6qkki.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAeIBUc4kTUheqOUCYDSrPPtVSmlh3PrFc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "437107509427-gm37e55kgok80h5p9g79tsl2v4b6qkki.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
