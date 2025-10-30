@@ -1,11 +1,12 @@
 name: Build Android APK
+
 on:
   workflow_dispatch:
   push:
     branches: [main]
 
 jobs:
-  build:
+  build-apk:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -19,17 +20,22 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install Capacitor CLI Android Platform
+        run: npm install @capacitor/cli @capacitor/android --save-dev
+
       - name: Build web app
         run: npm run build
 
-      - name: Build Android APK using Bubblewrap
+      - name: Capacitor sync
+        run: npm run cap:sync
+
+      - name: Build APK with Gradle
         run: |
-          npm install -g @bubblewrap/cli
-          npx bubblewrap init --manifest=https://amewala.web.app/manifest.json --appVersionName=1.0.0 --appVersionCode=1 --dir=.
-          npx bubblewrap build
+          cd android
+          ./gradlew assembleDebug
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v3
         with:
-          name: GameWala-APK
-          path: ./app-release-signed.apk
+          name: app-debug.apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
