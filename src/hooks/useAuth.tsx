@@ -10,6 +10,7 @@ export function useAuth() {
   const [user, setUser] = useState<FirebaseUser | null>(null)
   const [role, setRole] = useState<UserRole | null>(null)
   const [loading, setLoading] = useState(true)
+  const [authBusy, setAuthBusy] = useState(false)
 
   useEffect(() => {
     // Ensure local persistence and language before listeners
@@ -66,6 +67,8 @@ export function useAuth() {
   }, [])
 
   const loginWithGoogle = useCallback(async () => {
+    if (authBusy) return
+    setAuthBusy(true)
     const provider = new GoogleAuthProvider()
     // Always show the Google account chooser
     provider.setCustomParameters({ prompt: 'select_account' })
@@ -85,6 +88,9 @@ export function useAuth() {
       }
       console.error('Native popup sign-in failed:', e)
       throw e
+    } finally {
+      // On redirect flows, the page will navigate; this executes only for popup paths or immediate errors
+      setAuthBusy(false)
     }
   }, [])
 
@@ -92,7 +98,7 @@ export function useAuth() {
     await signOut(auth)
   }, [])
 
-  return useMemo(() => ({ user, role, loading, loginWithGoogle, logout }), [user, role, loading, loginWithGoogle, logout])
+  return useMemo(() => ({ user, role, loading, authBusy, loginWithGoogle, logout }), [user, role, loading, authBusy, loginWithGoogle, logout])
 }
 
 export default useAuth
