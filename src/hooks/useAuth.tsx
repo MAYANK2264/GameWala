@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
-import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signInWithRedirect, signOut, getRedirectResult, setPersistence, browserLocalPersistence, type User as FirebaseUser } from 'firebase/auth'
+import { GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signInWithRedirect, signOut, getRedirectResult, setPersistence, browserLocalPersistence, signInWithCredential, type User as FirebaseUser } from 'firebase/auth'
 import { Capacitor } from '@capacitor/core'
 import { auth, db } from '../firebaseConfig'
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
@@ -70,14 +70,24 @@ export function useAuth() {
     // Always show the Google account chooser
     provider.setCustomParameters({ prompt: 'select_account' })
     try {
-      // On native (Capacitor WebView), avoid redirect because sessionStorage is not preserved
-      if (Capacitor.isNativePlatform()) {
-        await signInWithPopup(auth, provider)
-        return
+      // Prefer native Google Sign-In if available and configured
+      if (Capacitor.isNativePlatform() && import.meta.env.VITE_GOOGLE_CLIENT_ID) {
+        const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth')
+        try {
+          await GoogleAuth.initialize({ scopes: ['profile', 'email'], serverClientId: import.meta.env.VITE_GOOGLE_CLIENT_ID })
+        } catch {}
+        const nativeRes = await GoogleAuth.signIn()
+        const idToken = nativeRes?.authentication?.idToken
+        if (idToken) {
+          const credential = GoogleAuthProvider.credential(idToken)
+          await signInWithCredential(auth, credential)
+          return
+        }
       }
+      // Fallback to popup on both web and native
       await signInWithPopup(auth, provider)
     } catch (e: any) {
-      // On web only, fallback to redirect if popup blocked. On native, surface the error to avoid losing state.
+      // On web only, fallback to redirect if popup blocked.
       if (!Capacitor.isNativePlatform()) {
         await signInWithRedirect(auth, provider)
         return

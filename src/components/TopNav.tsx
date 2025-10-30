@@ -18,7 +18,7 @@ export function TopNav() {
   ]
 
   return (
-    <nav className="border-b border-neutral-200 bg-white">
+    <nav className="border-b border-neutral-200 bg-white sticky top-0 z-50" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <div className="container-px">
         <div className="flex items-center justify-between h-14">
           <div className="flex items-center gap-2">
