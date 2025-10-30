@@ -9,6 +9,8 @@
   }
   body {
     @apply bg-neutral-50 text-neutral-800 antialiased;
+    /* Respect safe area and avoid content under status bars */
+    padding-top: env(safe-area-inset-top);
   }
   a {
     @apply text-neutral-700 hover:text-neutral-900;
@@ -22,5 +24,9 @@
   }
   .container-px {
     @apply px-4 sm:px-6 lg:px-8;
+  }
+  /* Better mobile spacing for sections */
+  .section {
+    @apply container-px py-4 sm:py-6;
   }
 }
