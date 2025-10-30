@@ -27,6 +27,6 @@
   }
   /* Better mobile spacing for sections */
   .section {
-    @apply container-px py-4 sm:py-6;
+    @apply px-4 sm:px-6 lg:px-8 py-4 sm:py-6;
   }
 }
