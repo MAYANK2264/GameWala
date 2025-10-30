@@ -54,6 +54,9 @@ jobs:
           EOF
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;34.0.0"
 
+      - name: Set Gradle wrapper permissions
+        run: chmod +x android/gradlew
+
       - name: Build APK with Gradle
         run: |
           cd android
