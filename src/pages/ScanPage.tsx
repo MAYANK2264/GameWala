@@ -1,87 +1,46 @@
-import { useEffect, useRef, useState } from 'react'
-import { Html5Qrcode } from 'html5-qrcode'
+import { useState, useRef } from 'react'
 import { getProductByBarcode, updateProductStatus } from '../services/inventory'
 import { createRepair, updateRepair } from '../services/repairs'
 import { storage } from '../firebaseConfig'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import type { Product } from '../types/product'
 import { useNavigate } from 'react-router-dom'
+import UnifiedScanner from '../components/UnifiedScanner'
 
 export default function ScanPage() {
-  const [hasCamera, setHasCamera] = useState<boolean | null>(null)
-  const [error, setError] = useState<string | null>(null)
   const [barcode, setBarcode] = useState('')
   const [product, setProduct] = useState<Product | null>(null)
-  const [scanning, setScanning] = useState(false)
+  const [scannerMessage, setScannerMessage] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [showRepairModal, setShowRepairModal] = useState(false)
   const [customerName, setCustomerName] = useState('')
-  const [customerPhone, setCustomerPhone] = useState(''); // NEW
+  const [customerPhone, setCustomerPhone] = useState('')
   const [note, setNote] = useState('')
   const [recording, setRecording] = useState<MediaRecorder | null>(null)
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
   const audioChunks = useRef<Blob[]>([])
-  const scannerRef = useRef<Html5Qrcode | null>(null)
-  const containerId = 'qr-reader'
   const navigate = useNavigate()
 
-  useEffect(() => {
-    async function init() {
-      try {
-        const devices = await Html5Qrcode.getCameras()
-        setHasCamera(devices && devices.length > 0)
-      } catch (e: any) {
-        setHasCamera(false)
-        setError('Camera access denied or unavailable')
-      }
-    }
-    init()
-    return () => {
-      if (scannerRef.current) {
-        try { scannerRef.current.stop(); } catch {}
-      }
-    }
-  }, [])
-
-  const startScan = async () => {
-    setError(null)
-    setProduct(null)
-    setScanning(true)
-    const html5QrCode = new Html5Qrcode(containerId, { verbose: false })
-    scannerRef.current = html5QrCode
-    try {
-      const devices = await Html5Qrcode.getCameras()
-      const camId = devices?.[0]?.id
-      if (!camId) throw new Error('No camera found')
-      await html5QrCode.start(
-        camId,
-        { fps: 10, qrbox: { width: 250, height: 120 }, aspectRatio: 1.77 },
-        async (text) => {
-          await onScan(text)
-          try { await html5QrCode.stop() } catch {}
-          setScanning(false)
-        },
-        () => {}
-      )
-    } catch (e: any) {
-      setError(e?.message ?? 'Failed to start camera')
-      setScanning(false)
-    }
-  }
-
-  const onScan = async (code: string) => {
+  const handleScannedCode = async (code: string) => {
     setBarcode(code)
-    const p = await getProductByBarcode(code)
-    setProduct(p)
-    if (!p) setError('No product found for this barcode')
+    setScannerMessage(`Scanned: ${code}`)
+    setError(null)
+    const fetched = await getProductByBarcode(code)
+    setProduct(fetched)
+    if (!fetched) {
+      setError('No product found for this barcode.')
+    }
   }
 
   const onManualLookup = async () => {
-    if (!barcode.trim()) return
-    setProduct(null)
+    if (!barcode.trim()) {
+      setError('Enter a barcode to lookup.')
+      return
+    }
     setError(null)
-    const p = await getProductByBarcode(barcode.trim())
-    setProduct(p)
-    if (!p) setError('No product found for this barcode')
+    const fetched = await getProductByBarcode(barcode.trim())
+    setProduct(fetched)
+    if (!fetched) setError('No product found for this barcode.')
   }
 
   const action = async (kind: 'sold' | 'repair' | 'edit') => {
@@ -102,19 +61,20 @@ export default function ScanPage() {
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const rec = new MediaRecorder(stream)
+      const recorder = new MediaRecorder(stream)
       audioChunks.current = []
-      rec.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunks.current.push(e.data)
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunks.current.push(event.data)
       }
-      rec.onstop = () => {
+      recorder.onstop = () => {
         const blob = new Blob(audioChunks.current, { type: 'audio/webm' })
         setAudioBlob(blob)
       }
-      rec.start()
-      setRecording(rec)
-    } catch (e) {
-      console.error('Mic permission denied', e)
+      recorder.start()
+      setRecording(recorder)
+    } catch (err) {
+      console.error('Mic permission denied', err)
+      setError('Microphone permission denied. Voice note will be skipped.')
     }
   }
 
@@ -125,15 +85,16 @@ export default function ScanPage() {
 
   const submitRepair = async () => {
     if (!product || !customerName.trim() || !/^\d{10}$/.test(customerPhone)) {
-      setError('Customer name and valid 10-digit phone are required');
-      return;
+      setError('Customer name and a valid 10-digit phone number are required.')
+      return
     }
+
     const repairId = await createRepair({
       productId: product.id,
       customerName: customerName.trim(),
-      customerPhone: customerPhone.trim(), // NEW
-      receivedDate: new Date().toISOString().slice(0,10),
-      expectedDate: new Date(Date.now() + 7*24*60*60*1000).toISOString().slice(0,10),
+      customerPhone: customerPhone.trim(),
+      receivedDate: new Date().toISOString().slice(0, 10),
+      expectedDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
       faultDescription: note || 'N/A',
       status: 'Received',
       estimate: Number(product.acquisitionPrice) || 0,
@@ -153,107 +114,235 @@ export default function ScanPage() {
     setProduct(refreshed)
     setShowRepairModal(false)
     setCustomerName('')
-    setCustomerPhone(''); // reset
+    setCustomerPhone('')
     setNote('')
     setAudioBlob(null)
   }
 
   return (
     <div className="container-px py-6">
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="card p-4 relative">
-          <div className="font-semibold mb-2">Scan Barcode</div>
-          <div className="relative">
-            <div id={containerId} className="rounded-md overflow-hidden bg-black/80 aspect-video"></div>
-            {scanning && (
-              <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white">Scanning…</div>
-            )}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="card p-4 lg:p-6 space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold">Scan Barcode</h2>
+            <p className="text-sm text-neutral-500">
+              Use your device camera, an external scanner, or the manual field below.
+            </p>
           </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {hasCamera ? (
-              <button onClick={startScan} className="px-3 py-2 rounded-md bg-neutral-900 text-white">{scanning ? 'Restart' : 'Start Scan'}</button>
-            ) : (
-              <div className="text-sm text-neutral-600">Camera not available. Use manual input.</div>
-            )}
+
+          <UnifiedScanner
+            onScan={handleScannedCode}
+            onStatusChange={(status) => setScannerMessage(status === 'scanning' ? 'Camera scanning…' : null)}
+            onError={setError}
+          />
+
+          <div className="space-y-2">
+            <label htmlFor="manual-barcode" className="text-sm font-medium text-neutral-700">
+              Manual entry
+            </label>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <input
+                id="manual-barcode"
+                value={barcode}
+                onChange={(event) => setBarcode(event.target.value)}
+                placeholder="Enter barcode manually"
+                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-base"
+                autoComplete="off"
+                inputMode="numeric"
+              />
+              <button
+                type="button"
+                onClick={onManualLookup}
+                className="touch-target inline-flex items-center justify-center rounded-md bg-neutral-900 px-4 py-2 font-medium text-white transition hover:opacity-90"
+              >
+                Lookup
+              </button>
+            </div>
+            <p className="text-xs text-neutral-500">
+              Tip: When using a USB scanner, just point to this page — the code will auto-fill when it beeps.
+            </p>
           </div>
-          <div className="mt-4 flex items-center gap-2">
-            <input
-              value={barcode}
-              onChange={(e) => setBarcode(e.target.value)}
-              placeholder="Enter barcode manually"
-              className="w-full rounded-md border-neutral-300"
-            />
-            <button onClick={onManualLookup} className="px-3 py-2 rounded-md bg-neutral-200">Lookup</button>
-          </div>
-          {error && <div className="mt-2 text-sm text-red-600">{error}</div>}
+
+          {(scannerMessage || error) && (
+            <div className="space-y-2">
+              {scannerMessage && (
+                <div className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+                  {scannerMessage}
+                </div>
+              )}
+              {error && (
+                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600" role="alert">
+                  {error}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        <div className="card p-4">
-          <div className="font-semibold mb-2">Result</div>
+        <div className="card p-4 lg:p-6 space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold">Product Details</h2>
+            <p className="text-sm text-neutral-500">Scan or search to view inventory details and quick actions.</p>
+          </div>
+
           {!product ? (
-            <div className="text-sm text-neutral-600">Scan a barcode to see product details.</div>
+            <div className="rounded-md border border-dashed border-neutral-300 p-6 text-center text-sm text-neutral-500">
+              No product loaded yet. Scan a barcode or lookup manually to continue.
+            </div>
           ) : (
-            <div className="space-y-2">
-              <div><span className="text-neutral-600">Barcode:</span> <span className="font-mono">{product.barcode}</span></div>
-              <div><span className="text-neutral-600">Brand:</span> {product.brand}</div>
-              <div><span className="text-neutral-600">Type:</span> {product.type}</div>
-              <div><span className="text-neutral-600">Condition:</span> {product.condition}</div>
-              <div><span className="text-neutral-600">Price:</span> ₹{product.acquisitionPrice}</div>
-              <div><span className="text-neutral-600">Status:</span> {(product as any).status ?? 'available'}</div>
-              <div className="pt-2 flex flex-wrap gap-2">
-                <button onClick={() => action('sold')} className="px-3 py-2 rounded-md bg-green-600 text-white">Mark Sold</button>
-                <button onClick={() => action('repair')} className="px-3 py-2 rounded-md bg-amber-600 text-white">For Repairing</button>
-                <button onClick={() => action('edit')} className="px-3 py-2 rounded-md bg-neutral-200">Edit</button>
+            <div className="space-y-3">
+              <div className="grid gap-2 text-sm sm:grid-cols-2">
+                <div>
+                  <span className="text-neutral-500">Barcode</span>
+                  <div className="font-mono text-base">{product.barcode}</div>
+                </div>
+                <div>
+                  <span className="text-neutral-500">Brand</span>
+                  <div>{product.brand || '—'}</div>
+                </div>
+                <div>
+                  <span className="text-neutral-500">Type</span>
+                  <div>{product.type || '—'}</div>
+                </div>
+                <div>
+                  <span className="text-neutral-500">Condition</span>
+                  <div>{product.condition || '—'}</div>
+                </div>
+                <div>
+                  <span className="text-neutral-500">Price</span>
+                  <div>₹{product.acquisitionPrice ?? '—'}</div>
+                </div>
+                <div>
+                  <span className="text-neutral-500">Status</span>
+                  <div>{(product as any).status ?? 'available'}</div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => action('sold')}
+                  className="touch-target inline-flex items-center justify-center rounded-md bg-green-600 px-4 py-2 font-medium text-white transition hover:bg-green-700"
+                >
+                  Mark Sold
+                </button>
+                <button
+                  type="button"
+                  onClick={() => action('repair')}
+                  className="touch-target inline-flex items-center justify-center rounded-md bg-amber-600 px-4 py-2 font-medium text-white transition hover:bg-amber-700"
+                >
+                  For Repairing
+                </button>
+                <button
+                  type="button"
+                  onClick={() => action('edit')}
+                  className="touch-target inline-flex items-center justify-center rounded-md border border-neutral-300 bg-white px-4 py-2 font-medium text-neutral-700 transition hover:bg-neutral-100"
+                >
+                  Edit
+                </button>
               </div>
             </div>
           )}
         </div>
       </div>
-        {showRepairModal && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg w-full max-w-lg shadow-lg">
-              <div className="p-4 border-b border-neutral-200 flex items-center justify-between">
-                <div className="font-semibold">Start Repair</div>
-                <button onClick={() => setShowRepairModal(false)} className="px-2 py-1 rounded bg-neutral-200">Close</button>
+
+      {showRepairModal && (
+        <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="modal-content w-full max-w-lg rounded-lg bg-white shadow-lg">
+            <div className="flex items-center justify-between border-b border-neutral-200 p-4">
+              <h3 className="text-lg font-semibold">Start Repair</h3>
+              <button
+                type="button"
+                onClick={() => setShowRepairModal(false)}
+                className="touch-target rounded-md border border-neutral-200 bg-neutral-100 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-200"
+              >
+                Close
+              </button>
+            </div>
+            <div className="space-y-4 p-4">
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-neutral-700" htmlFor="repair-customer-name">
+                  Customer Name *
+                </label>
+                <input
+                  id="repair-customer-name"
+                  value={customerName}
+                  onChange={(event) => setCustomerName(event.target.value)}
+                  className="w-full rounded-md border border-neutral-300 px-3 py-2"
+                  placeholder="Enter customer name"
+                />
               </div>
-              <div className="p-4 space-y-3">
-                <div>
-                  <label className="text-xs text-neutral-600">Customer Name *</label>
-                  <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="w-full rounded-md border-neutral-300" placeholder="Enter customer name" />
-                </div>
-                <div>
-                  <label className="text-xs text-neutral-600">Customer Phone Number *</label>
-                  <input type="tel"
-                    value={customerPhone}
-                    onChange={e => setCustomerPhone(e.target.value)}
-                    className="w-full rounded-md border-neutral-300"
-                    placeholder="10 digit phone"
-                    maxLength={10}
-                    pattern="[0-9]{10}"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-neutral-600">Notes (fault description)</label>
-                  <textarea value={note} onChange={(e) => setNote(e.target.value)} className="w-full rounded-md border-neutral-300" rows={4} />
-                </div>
-                <div>
-                  <div className="text-xs text-neutral-600 mb-1">Voice Note (optional)</div>
-                  <div className="flex items-center gap-2">
-                    {!recording && <button onClick={startRecording} className="px-3 py-2 rounded-md bg-neutral-900 text-white">Record</button>}
-                    {recording && <button onClick={stopRecording} className="px-3 py-2 rounded-md bg-red-600 text-white">Stop</button>}
-                    {audioBlob && <audio controls src={URL.createObjectURL(audioBlob)} />}
-                  </div>
-                </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-neutral-700" htmlFor="repair-customer-phone">
+                  Customer Phone Number *
+                </label>
+                <input
+                  id="repair-customer-phone"
+                  type="tel"
+                  value={customerPhone}
+                  onChange={(event) => setCustomerPhone(event.target.value)}
+                  className="w-full rounded-md border border-neutral-300 px-3 py-2"
+                  placeholder="10 digit phone"
+                  maxLength={10}
+                  pattern="[0-9]{10}"
+                  inputMode="numeric"
+                />
               </div>
-              <div className="p-4 border-t border-neutral-200 flex justify-end gap-2">
-                <button onClick={() => setShowRepairModal(false)} className="px-3 py-2 rounded-md bg-neutral-200">Cancel</button>
-                <button onClick={submitRepair} className="px-3 py-2 rounded-md bg-neutral-900 text-white">Create Repair</button>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-neutral-700" htmlFor="repair-notes">
+                  Notes (fault description)
+                </label>
+                <textarea
+                  id="repair-notes"
+                  value={note}
+                  onChange={(event) => setNote(event.target.value)}
+                  className="min-h-[120px] w-full rounded-md border border-neutral-300 px-3 py-2"
+                />
+              </div>
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-neutral-700">Voice Note (optional)</div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {!recording && (
+                    <button
+                      type="button"
+                      onClick={startRecording}
+                      className="touch-target inline-flex items-center justify-center rounded-md bg-neutral-900 px-4 py-2 font-medium text-white transition hover:opacity-90"
+                    >
+                      Record
+                    </button>
+                  )}
+                  {recording && (
+                    <button
+                      type="button"
+                      onClick={stopRecording}
+                      className="touch-target inline-flex items-center justify-center rounded-md bg-red-600 px-4 py-2 font-medium text-white transition hover:bg-red-700"
+                    >
+                      Stop
+                    </button>
+                  )}
+                  {audioBlob && <audio controls src={URL.createObjectURL(audioBlob)} className="max-w-full" />}
+                </div>
               </div>
             </div>
+            <div className="flex justify-end gap-2 border-t border-neutral-200 p-4">
+              <button
+                type="button"
+                onClick={() => setShowRepairModal(false)}
+                className="touch-target rounded-md border border-neutral-200 bg-white px-4 py-2 font-medium text-neutral-700 hover:bg-neutral-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={submitRepair}
+                className="touch-target inline-flex items-center justify-center rounded-md bg-neutral-900 px-4 py-2 font-medium text-white transition hover:opacity-90"
+              >
+                Create Repair
+              </button>
+            </div>
           </div>
-        )}
+        </div>
+      )}
     </div>
   )
 }
-
-

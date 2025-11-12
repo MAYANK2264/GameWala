@@ -257,54 +257,168 @@ export default function InventoryPage() {
 
   return (
     <div className="container-px py-6">
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search products..."
-          className="w-full sm:w-80 rounded-md border-neutral-300"
+          placeholder="Search products…"
+          className="w-full rounded-md border border-neutral-300 px-3 py-2 text-base sm:w-80"
+          inputMode="search"
         />
-        <button onClick={openAdd} className="px-3 py-2 rounded-md bg-neutral-900 text-white">Add Product</button>
-        <div className="flex items-center gap-1 ml-auto">
+        <button
+          type="button"
+          onClick={openAdd}
+          className="touch-target inline-flex items-center justify-center rounded-md bg-neutral-900 px-4 py-2 font-medium text-white transition hover:opacity-90"
+        >
+          Add Product
+        </button>
+        <div className="ml-auto flex items-center gap-2">
           <button
-            className={[
-              'px-3 py-2 rounded-md text-sm',
-              view === 'shop' ? 'bg-neutral-900 text-white' : 'bg-neutral-200'
-            ].join(' ')}
+            className={`touch-target inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition ${
+              view === 'shop' ? 'bg-neutral-900 text-white' : 'bg-neutral-200 text-neutral-700'
+            }`}
             onClick={() => setView('shop')}
             type="button"
+            aria-pressed={view === 'shop'}
           >
             In Shop
           </button>
           <button
-            className={[
-              'px-3 py-2 rounded-md text-sm',
-              view === 'repair' ? 'bg-neutral-900 text-white' : 'bg-neutral-200'
-            ].join(' ')}
+            className={`touch-target inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition ${
+              view === 'repair' ? 'bg-neutral-900 text-white' : 'bg-neutral-200 text-neutral-700'
+            }`}
             onClick={() => setView('repair')}
             type="button"
+            aria-pressed={view === 'repair'}
           >
             In Repair
           </button>
         </div>
       </div>
       {view === 'shop' && (
-      <div className="card p-4 mb-6">
-        <div className="font-semibold mb-2">Shop Inventory</div>
-        <div className="overflow-x-auto -mx-4 sm:mx-0">
+      <div className="card mb-6 p-4">
+        <div className="mb-2 text-lg font-semibold">Shop Inventory</div>
+        <div className="space-y-3 sm:hidden">
+          {loading ? (
+            <div className="rounded-lg border border-neutral-200 p-4 text-sm text-neutral-600">Loading…</div>
+          ) : shopProducts.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-neutral-300 p-6 text-center text-sm text-neutral-500">
+              No products
+            </div>
+          ) : (
+            shopProducts.map((p) => (
+              <div key={p.id} className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-neutral-900">{p.brand || 'Unnamed product'}</div>
+                    <div className="text-xs uppercase tracking-wide text-neutral-500">{p.type || '—'}</div>
+                  </div>
+                  <div className="text-right text-sm text-neutral-600">
+                    <div className="font-mono text-base">{p.barcode}</div>
+                    <div>₹{p.acquisitionPrice}</div>
+                  </div>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-neutral-500">
+                  <div>
+                    <span className="block text-neutral-400">Condition</span>
+                    <span className="text-neutral-700">{p.condition}</span>
+                  </div>
+                  <div>
+                    <span className="block text-neutral-400">Acquired</span>
+                    <span className="text-neutral-700">{p.acquiredDate}</span>
+                  </div>
+                  <div>
+                    <span className="block text-neutral-400">From</span>
+                    <span className="text-neutral-700">{p.acquiredFrom || '—'}</span>
+                  </div>
+                  <div>
+                    <span className="block text-neutral-400">Status</span>
+                    <span className="text-neutral-700">{(p as any).status ?? 'available'}</span>
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <BarcodeLabel code={p.barcode} brand={p.brand} productType={p.type} />
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openEdit(p)}
+                    className="touch-target inline-flex flex-1 items-center justify-center rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-700 transition hover:bg-neutral-100"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => startRepair(p)}
+                    className="touch-target inline-flex flex-1 items-center justify-center rounded-md bg-amber-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-amber-700"
+                  >
+                    Repair
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openSell(p)}
+                    className="touch-target inline-flex flex-1 items-center justify-center rounded-md bg-green-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-green-700"
+                  >
+                    Sell
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(p.id)}
+                    className="touch-target inline-flex flex-1 items-center justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-red-700"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+        <div className="hidden overflow-x-auto -mx-4 sm:mx-0 sm:block">
         <table className="min-w-full text-sm">
           <thead>
             <tr className="text-left text-neutral-600">
-              <th className="py-2 px-3 cursor-pointer" onClick={() => sortBy('barcode')}>Barcode</th>
-              <th className="py-2 px-3 cursor-pointer" onClick={() => sortBy('brand')}>Brand</th>
-              <th className="py-2 px-3 cursor-pointer" onClick={() => sortBy('type')}>Type</th>
-              <th className="py-2 px-3">Condition</th>
-              <th className="py-2 px-3 cursor-pointer" onClick={() => sortBy('acquiredDate')}>Acquired</th>
-              <th className="py-2 px-3">From</th>
-              <th className="py-2 px-3">Price</th>
-              <th className="py-2 px-3">Status</th>
-              <th className="py-2 px-3">Barcode</th>
-              <th className="py-2 px-3">Actions</th>
+              <th scope="col" className="py-2 px-3">
+                <button
+                  type="button"
+                  onClick={() => sortBy('barcode')}
+                  className="touch-target inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
+                >
+                  Barcode
+                </button>
+              </th>
+              <th scope="col" className="py-2 px-3">
+                <button
+                  type="button"
+                  onClick={() => sortBy('brand')}
+                  className="touch-target inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
+                >
+                  Brand
+                </button>
+              </th>
+              <th scope="col" className="py-2 px-3">
+                <button
+                  type="button"
+                  onClick={() => sortBy('type')}
+                  className="touch-target inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
+                >
+                  Type
+                </button>
+              </th>
+              <th scope="col" className="py-2 px-3">Condition</th>
+              <th scope="col" className="py-2 px-3">
+                <button
+                  type="button"
+                  onClick={() => sortBy('acquiredDate')}
+                  className="touch-target inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
+                >
+                  Acquired
+                </button>
+              </th>
+              <th scope="col" className="py-2 px-3">From</th>
+              <th scope="col" className="py-2 px-3">Price</th>
+              <th scope="col" className="py-2 px-3">Status</th>
+              <th scope="col" className="py-2 px-3">Barcode</th>
+              <th scope="col" className="py-2 px-3">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -331,10 +445,34 @@ export default function InventoryPage() {
                   </td>
                   <td className="py-2 px-3"><BarcodeLabel code={p.barcode} brand={p.brand} productType={p.type} /></td>
                   <td className="py-2 px-3 space-x-2">
-                    <button onClick={() => openEdit(p)} className="px-2 py-1 rounded bg-neutral-200 hover:bg-neutral-300">Edit</button>
-                    <button onClick={() => startRepair(p)} className="px-2 py-1 rounded bg-amber-600 text-white hover:opacity-90">Start Repair</button>
-                    <button onClick={() => openSell(p)} className="px-2 py-1 rounded bg-green-600 text-white hover:opacity-90">Mark Sold</button>
-                    <button onClick={() => handleDelete(p.id)} className="px-2 py-1 rounded bg-red-600 text-white hover:opacity-90">Delete</button>
+                    <button
+                      type="button"
+                      onClick={() => openEdit(p)}
+                      className="touch-target inline-flex items-center justify-center rounded-md bg-neutral-200 px-3 py-2 text-xs font-medium text-neutral-700 transition hover:bg-neutral-300"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => startRepair(p)}
+                      className="touch-target inline-flex items-center justify-center rounded-md bg-amber-600 px-3 py-2 text-xs font-medium text-white transition hover:bg-amber-700"
+                    >
+                      Start Repair
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openSell(p)}
+                      className="touch-target inline-flex items-center justify-center rounded-md bg-green-600 px-3 py-2 text-xs font-medium text-white transition hover:bg-green-700"
+                    >
+                      Mark Sold
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(p.id)}
+                      className="touch-target inline-flex items-center justify-center rounded-md bg-red-600 px-3 py-2 text-xs font-medium text-white transition hover:bg-red-700"
+                    >
+                      Delete
+                    </button>
                   </td>
                 </tr>
               ))
@@ -347,21 +485,114 @@ export default function InventoryPage() {
 
       {view === 'repair' && (
       <div className="card p-4">
-        <div className="font-semibold mb-2">In Repair</div>
-        <div className="overflow-x-auto -mx-4 sm:mx-0">
+        <div className="mb-2 text-lg font-semibold">In Repair</div>
+        <div className="space-y-3 sm:hidden">
+          {loading ? (
+            <div className="rounded-lg border border-neutral-200 p-4 text-sm text-neutral-600">Loading…</div>
+          ) : repairProducts.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-neutral-300 p-6 text-center text-sm text-neutral-500">
+              No products
+            </div>
+          ) : (
+            repairProducts.map((p) => (
+              <div key={p.id} className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-neutral-900">{p.brand || 'Unnamed product'}</div>
+                    <div className="text-xs uppercase tracking-wide text-neutral-500">{p.type || '—'}</div>
+                  </div>
+                  <div className="text-right text-sm text-neutral-600">
+                    <div className="font-mono text-base">{p.barcode}</div>
+                    <div>₹{p.acquisitionPrice}</div>
+                  </div>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-neutral-500">
+                  <div>
+                    <span className="block text-neutral-400">Condition</span>
+                    <span className="text-neutral-700">{p.condition}</span>
+                  </div>
+                  <div>
+                    <span className="block text-neutral-400">Acquired</span>
+                    <span className="text-neutral-700">{p.acquiredDate}</span>
+                  </div>
+                  <div>
+                    <span className="block text-neutral-400">From</span>
+                    <span className="text-neutral-700">{p.acquiredFrom || '—'}</span>
+                  </div>
+                  <div>
+                    <span className="block text-neutral-400">Status</span>
+                    <span className="text-neutral-700">{(p as any).status ?? 'in_repair'}</span>
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <BarcodeLabel code={p.barcode} brand={p.brand} productType={p.type} />
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openEdit(p)}
+                    className="touch-target inline-flex flex-1 items-center justify-center rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-700 transition hover:bg-neutral-100"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(p.id)}
+                    className="touch-target inline-flex flex-1 items-center justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-red-700"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+        <div className="hidden overflow-x-auto -mx-4 sm:mx-0 sm:block">
         <table className="min-w-full text-sm">
           <thead>
             <tr className="text-left text-neutral-600">
-              <th className="py-2 px-3 cursor-pointer" onClick={() => sortBy('barcode')}>Barcode</th>
-              <th className="py-2 px-3 cursor-pointer" onClick={() => sortBy('brand')}>Brand</th>
-              <th className="py-2 px-3 cursor-pointer" onClick={() => sortBy('type')}>Type</th>
-              <th className="py-2 px-3">Condition</th>
-              <th className="py-2 px-3 cursor-pointer" onClick={() => sortBy('acquiredDate')}>Acquired</th>
-              <th className="py-2 px-3">From</th>
-              <th className="py-2 px-3">Price</th>
-              <th className="py-2 px-3">Status</th>
-              <th className="py-2 px-3">Barcode</th>
-              <th className="py-2 px-3">Actions</th>
+              <th scope="col" className="py-2 px-3">
+                <button
+                  type="button"
+                  onClick={() => sortBy('barcode')}
+                  className="touch-target inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
+                >
+                  Barcode
+                </button>
+              </th>
+              <th scope="col" className="py-2 px-3">
+                <button
+                  type="button"
+                  onClick={() => sortBy('brand')}
+                  className="touch-target inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
+                >
+                  Brand
+                </button>
+              </th>
+              <th scope="col" className="py-2 px-3">
+                <button
+                  type="button"
+                  onClick={() => sortBy('type')}
+                  className="touch-target inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
+                >
+                  Type
+                </button>
+              </th>
+              <th scope="col" className="py-2 px-3">Condition</th>
+              <th scope="col" className="py-2 px-3">
+                <button
+                  type="button"
+                  onClick={() => sortBy('acquiredDate')}
+                  className="touch-target inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-neutral-700 hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
+                >
+                  Acquired
+                </button>
+              </th>
+              <th scope="col" className="py-2 px-3">From</th>
+              <th scope="col" className="py-2 px-3">Price</th>
+              <th scope="col" className="py-2 px-3">Status</th>
+              <th scope="col" className="py-2 px-3">Barcode</th>
+              <th scope="col" className="py-2 px-3">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -388,8 +619,20 @@ export default function InventoryPage() {
                   </td>
                   <td className="py-2 px-3"><BarcodeLabel code={p.barcode} brand={p.brand} productType={p.type} /></td>
                   <td className="py-2 px-3 space-x-2">
-                    <button onClick={() => openEdit(p)} className="px-2 py-1 rounded bg-neutral-200 hover:bg-neutral-300">Edit</button>
-                    <button onClick={() => handleDelete(p.id)} className="px-2 py-1 rounded bg-red-600 text-white hover:opacity-90">Delete</button>
+                    <button
+                      type="button"
+                      onClick={() => openEdit(p)}
+                      className="touch-target inline-flex items-center justify-center rounded-md bg-neutral-200 px-3 py-2 text-xs font-medium text-neutral-700 transition hover:bg-neutral-300"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(p.id)}
+                      className="touch-target inline-flex items-center justify-center rounded-md bg-red-600 px-3 py-2 text-xs font-medium text-white transition hover:bg-red-700"
+                    >
+                      Delete
+                    </button>
                   </td>
                 </tr>
               ))
@@ -401,133 +644,264 @@ export default function InventoryPage() {
       )}
 
        {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg w-full max-w-2xl shadow-lg">
-            <div className="p-4 border-b border-neutral-200 flex items-center justify-between">
-              <div className="font-semibold">{editingId ? 'Edit Product' : 'Add Product'}</div>
-              <button onClick={() => setShowModal(false)} className="px-2 py-1 rounded bg-neutral-200">Close</button>
+        <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="modal-content w-full max-w-2xl rounded-lg bg-white shadow-lg">
+            <div className="flex items-center justify-between border-b border-neutral-200 p-4">
+              <div className="text-lg font-semibold">{editingId ? 'Edit Product' : 'Add Product'}</div>
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                className="touch-target rounded-md border border-neutral-200 bg-neutral-100 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-200"
+              >
+                Close
+              </button>
             </div>
-            <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs text-neutral-600">Barcode</label>
-                <input value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} className="w-full rounded-md border-neutral-300" />
+            <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2">
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-neutral-700">Barcode</label>
+                <input
+                  value={form.barcode}
+                  onChange={(e) => setForm({ ...form, barcode: e.target.value })}
+                  className="w-full rounded-md border border-neutral-300 px-3 py-2"
+                />
               </div>
-              <div>
-                <label className="text-xs text-neutral-600">Brand</label>
-                <input value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} className="w-full rounded-md border-neutral-300" />
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-neutral-700">Brand</label>
+                <input
+                  value={form.brand}
+                  onChange={(e) => setForm({ ...form, brand: e.target.value })}
+                  className="w-full rounded-md border border-neutral-300 px-3 py-2"
+                />
               </div>
-              <div>
-                <label className="text-xs text-neutral-600">Type</label>
-                <input value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="w-full rounded-md border-neutral-300" />
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-neutral-700">Type</label>
+                <input
+                  value={form.type}
+                  onChange={(e) => setForm({ ...form, type: e.target.value })}
+                  className="w-full rounded-md border border-neutral-300 px-3 py-2"
+                />
               </div>
-              <div>
-                <label className="text-xs text-neutral-600">Condition</label>
-                <select value={form.condition} onChange={(e) => setForm({ ...form, condition: e.target.value })} className="w-full rounded-md border-neutral-300">
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-neutral-700">Condition</label>
+                <select
+                  value={form.condition}
+                  onChange={(e) => setForm({ ...form, condition: e.target.value })}
+                  className="w-full rounded-md border border-neutral-300 px-3 py-2"
+                >
                   <option value="new">new</option>
                   <option value="used">used</option>
                   <option value="refurbished">refurbished</option>
                 </select>
               </div>
-              <div>
-                <label className="text-xs text-neutral-600">Acquired Date</label>
-                <input type="date" value={form.acquiredDate} onChange={(e) => setForm({ ...form, acquiredDate: e.target.value })} className="w-full rounded-md border-neutral-300" />
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-neutral-700">Acquired Date</label>
+                <input
+                  type="date"
+                  value={form.acquiredDate}
+                  onChange={(e) => setForm({ ...form, acquiredDate: e.target.value })}
+                  className="w-full rounded-md border border-neutral-300 px-3 py-2"
+                />
               </div>
-              <div>
-                <label className="text-xs text-neutral-600">Acquisition Price</label>
-                <input type="number" value={form.acquisitionPrice} onChange={(e) => setForm({ ...form, acquisitionPrice: e.target.value })} className="w-full rounded-md border-neutral-300" />
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-neutral-700">Acquisition Price</label>
+                <input
+                  type="number"
+                  value={form.acquisitionPrice}
+                  onChange={(e) => setForm({ ...form, acquisitionPrice: e.target.value })}
+                  className="w-full rounded-md border border-neutral-300 px-3 py-2"
+                />
               </div>
-              <div>
-                <label className="text-xs text-neutral-600">Acquired From</label>
-                <input value={form.acquiredFrom} onChange={(e) => setForm({ ...form, acquiredFrom: e.target.value })} className="w-full rounded-md border-neutral-300" />
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-neutral-700">Acquired From</label>
+                <input
+                  value={form.acquiredFrom}
+                  onChange={(e) => setForm({ ...form, acquiredFrom: e.target.value })}
+                  className="w-full rounded-md border border-neutral-300 px-3 py-2"
+                />
               </div>
-              <div>
-                <label className="text-xs text-neutral-600">Phone Number</label>
-                <input type="tel"
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-neutral-700">Phone Number</label>
+                <input
+                  type="tel"
                   value={form.customerPhone}
-                  onChange={e => setForm({ ...form, customerPhone: e.target.value })}
-                  className="w-full rounded-md border-neutral-300"
+                  onChange={(e) => setForm({ ...form, customerPhone: e.target.value })}
+                  className="w-full rounded-md border border-neutral-300 px-3 py-2"
                   placeholder="10 digit phone"
                   maxLength={10}
                   pattern="[0-9]{10}"
+                  inputMode="numeric"
                 />
               </div>
-              <div className="sm:col-span-2">
-                <label className="text-xs text-neutral-600">Notes</label>
-                <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="w-full rounded-md border-neutral-300" rows={3} />
+              <div className="sm:col-span-2 space-y-1">
+                <label className="text-sm font-medium text-neutral-700">Notes</label>
+                <textarea
+                  value={form.notes}
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                  className="w-full rounded-md border border-neutral-300 px-3 py-2"
+                  rows={3}
+                />
               </div>
             </div>
-            <div className="p-4 border-t border-neutral-200 flex justify-end gap-2">
-              <button onClick={() => setShowModal(false)} className="px-3 py-2 rounded-md bg-neutral-200">Cancel</button>
-              <button onClick={handleSubmit} className="px-3 py-2 rounded-md bg-neutral-900 text-white">{editingId ? 'Save Changes' : 'Add Product'}</button>
+            <div className="flex justify-end gap-2 border-t border-neutral-200 p-4">
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                className="touch-target rounded-md border border-neutral-200 bg-white px-4 py-2 font-medium text-neutral-700 hover:bg-neutral-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                className="touch-target inline-flex items-center justify-center rounded-md bg-neutral-900 px-4 py-2 font-medium text-white transition hover:opacity-90"
+              >
+                {editingId ? 'Save Changes' : 'Add Product'}
+              </button>
             </div>
           </div>
         </div>
       )}
 
        {showRepairModal && (
-         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-           <div className="bg-white rounded-lg w-full max-w-lg shadow-lg">
-             <div className="p-4 border-b border-neutral-200 flex items-center justify-between">
-               <div className="font-semibold">Start Repair</div>
-               <button onClick={() => setShowRepairModal(false)} className="px-2 py-1 rounded bg-neutral-200">Close</button>
+         <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+           <div className="modal-content w-full max-w-lg rounded-lg bg-white shadow-lg">
+             <div className="flex items-center justify-between border-b border-neutral-200 p-4">
+               <div className="text-lg font-semibold">Start Repair</div>
+               <button
+                 type="button"
+                 onClick={() => setShowRepairModal(false)}
+                 className="touch-target rounded-md border border-neutral-200 bg-neutral-100 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-200"
+               >
+                 Close
+               </button>
              </div>
-             <div className="p-4 space-y-3">
-               <div>
-                 <label className="text-xs text-neutral-600">Notes (fault description)</label>
-                 <textarea value={repairNote} onChange={(e) => setRepairNote(e.target.value)} className="w-full rounded-md border-neutral-300" rows={4} />
+             <div className="space-y-4 p-4">
+               <div className="space-y-1">
+                 <label className="text-sm font-medium text-neutral-700">Notes (fault description)</label>
+                 <textarea
+                   value={repairNote}
+                   onChange={(e) => setRepairNote(e.target.value)}
+                   className="w-full rounded-md border border-neutral-300 px-3 py-2"
+                   rows={4}
+                 />
                </div>
-               <div>
-                 <div className="text-xs text-neutral-600 mb-1">Voice Note (optional)</div>
-                 <div className="flex items-center gap-2">
-                   {!recording && <button onClick={startRecording} className="px-3 py-2 rounded-md bg-neutral-900 text-white">Record</button>}
-                   {recording && <button onClick={stopRecording} className="px-3 py-2 rounded-md bg-red-600 text-white">Stop</button>}
-                   {audioBlob && <audio controls src={URL.createObjectURL(audioBlob)} />}
+               <div className="space-y-2">
+                 <div className="text-sm font-medium text-neutral-700">Voice Note (optional)</div>
+                 <div className="flex flex-wrap items-center gap-2">
+                   {!recording && (
+                     <button
+                       type="button"
+                       onClick={startRecording}
+                       className="touch-target inline-flex items-center justify-center rounded-md bg-neutral-900 px-4 py-2 font-medium text-white transition hover:opacity-90"
+                     >
+                       Record
+                     </button>
+                   )}
+                   {recording && (
+                     <button
+                       type="button"
+                       onClick={stopRecording}
+                       className="touch-target inline-flex items-center justify-center rounded-md bg-red-600 px-4 py-2 font-medium text-white transition hover:bg-red-700"
+                     >
+                       Stop
+                     </button>
+                   )}
+                   {audioBlob && <audio controls src={URL.createObjectURL(audioBlob)} className="max-w-full" />}
                  </div>
                </div>
-               <div>
-                 <label className="text-xs text-neutral-600">Customer Name *</label>
-                 <input value={repairCustomerName} onChange={e => setRepairCustomerName(e.target.value)} className="w-full rounded-md border-neutral-300" />
+               <div className="space-y-1">
+                 <label className="text-sm font-medium text-neutral-700">Customer Name *</label>
+                 <input
+                   value={repairCustomerName}
+                   onChange={(e) => setRepairCustomerName(e.target.value)}
+                   className="w-full rounded-md border border-neutral-300 px-3 py-2"
+                 />
                </div>
-               <div>
-                 <label className="text-xs text-neutral-600">Customer Phone Number *</label>
-                 <input type="tel"
+               <div className="space-y-1">
+                 <label className="text-sm font-medium text-neutral-700">Customer Phone Number *</label>
+                 <input
+                   type="tel"
                    value={repairCustomerPhone}
-                   onChange={e => setRepairCustomerPhone(e.target.value)}
-                   className="w-full rounded-md border-neutral-300"
+                   onChange={(e) => setRepairCustomerPhone(e.target.value)}
+                   className="w-full rounded-md border border-neutral-300 px-3 py-2"
                    placeholder="10 digit phone"
                    maxLength={10}
                    pattern="[0-9]{10}"
+                   inputMode="numeric"
                  />
                </div>
              </div>
-             <div className="p-4 border-t border-neutral-200 flex justify-end gap-2">
-               <button onClick={() => setShowRepairModal(false)} className="px-3 py-2 rounded-md bg-neutral-200">Cancel</button>
-               <button onClick={submitRepair} className="px-3 py-2 rounded-md bg-neutral-900 text-white">Create Repair</button>
+             <div className="flex justify-end gap-2 border-t border-neutral-200 p-4">
+               <button
+                 type="button"
+                 onClick={() => setShowRepairModal(false)}
+                 className="touch-target rounded-md border border-neutral-200 bg-white px-4 py-2 font-medium text-neutral-700 hover:bg-neutral-100"
+               >
+                 Cancel
+               </button>
+               <button
+                 type="button"
+                 onClick={submitRepair}
+                 className="touch-target inline-flex items-center justify-center rounded-md bg-neutral-900 px-4 py-2 font-medium text-white transition hover:opacity-90"
+               >
+                 Create Repair
+               </button>
              </div>
            </div>
          </div>
        )}
 
        {showSellModal && (
-         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-           <div className="bg-white rounded-lg w-full max-w-sm shadow-lg">
-             <div className="p-4 border-b border-neutral-200 flex items-center justify-between">
-               <div className="font-semibold">Sell Product — {sellFor?.brand} {sellFor?.type}</div>
-               <button onClick={() => setShowSellModal(false)} className="px-2 py-1 rounded bg-neutral-200">Close</button>
-             </div>
-             <div className="p-4 space-y-3">
-               <div>
-                 <label className="text-xs text-neutral-600">Sale Price (₹) *</label>
-                 <input type="number" value={sellPrice} onChange={e => setSellPrice(e.target.value)} className="w-full rounded-md border-neutral-300" />
+         <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+           <div className="modal-content w-full max-w-sm rounded-lg bg-white shadow-lg">
+             <div className="flex items-center justify-between border-b border-neutral-200 p-4">
+               <div className="text-lg font-semibold">
+                 Sell Product — {sellFor?.brand} {sellFor?.type}
                </div>
-               <div>
-                 <label className="text-xs text-neutral-600">Sold By</label>
-                 <input value={soldBy} onChange={e => setSoldBy(e.target.value)} className="w-full rounded-md border-neutral-300" placeholder="Employee name (optional)" />
+               <button
+                 type="button"
+                 onClick={() => setShowSellModal(false)}
+                 className="touch-target rounded-md border border-neutral-200 bg-neutral-100 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-200"
+               >
+                 Close
+               </button>
+             </div>
+             <div className="space-y-3 p-4">
+               <div className="space-y-1">
+                 <label className="text-sm font-medium text-neutral-700">Sale Price (₹) *</label>
+                 <input
+                   type="number"
+                   value={sellPrice}
+                   onChange={(e) => setSellPrice(e.target.value)}
+                   className="w-full rounded-md border border-neutral-300 px-3 py-2"
+                   min={0}
+                 />
+               </div>
+               <div className="space-y-1">
+                 <label className="text-sm font-medium text-neutral-700">Sold By</label>
+                 <input
+                   value={soldBy}
+                   onChange={(e) => setSoldBy(e.target.value)}
+                   className="w-full rounded-md border border-neutral-300 px-3 py-2"
+                   placeholder="Employee name (optional)"
+                 />
                </div>
              </div>
-             <div className="p-4 border-t border-neutral-200 flex justify-end gap-2">
-               <button onClick={() => setShowSellModal(false)} className="px-3 py-2 rounded-md bg-neutral-200">Cancel</button>
-               <button onClick={submitSell} className="px-3 py-2 rounded-md bg-neutral-900 text-white">Confirm Sale</button>
+             <div className="flex justify-end gap-2 border-t border-neutral-200 p-4">
+               <button
+                 type="button"
+                 onClick={() => setShowSellModal(false)}
+                 className="touch-target rounded-md border border-neutral-200 bg-white px-4 py-2 font-medium text-neutral-700 hover:bg-neutral-100"
+               >
+                 Cancel
+               </button>
+               <button
+                 type="button"
+                 onClick={submitSell}
+                 className="touch-target inline-flex items-center justify-center rounded-md bg-neutral-900 px-4 py-2 font-medium text-white transition hover:opacity-90"
+               >
+                 Confirm Sale
+               </button>
              </div>
            </div>
          </div>

@@ -6,11 +6,20 @@
 @layer base {
   html, body, #root {
     height: 100%;
+    -webkit-tap-highlight-color: rgba(0,0,0,0.12);
   }
   body {
     @apply bg-neutral-50 text-neutral-800 antialiased;
     /* Respect safe area and avoid content under status bars */
     padding-top: env(safe-area-inset-top);
+  }
+  button,
+  a,
+  input,
+  label {
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
   }
   a {
     @apply text-neutral-700 hover:text-neutral-900;
@@ -28,5 +37,19 @@
   /* Better mobile spacing for sections */
   .section {
     @apply px-4 sm:px-6 lg:px-8 py-4 sm:py-6;
+  }
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 8px;
+    border-radius: 8px;
+  }
+  .modal-backdrop {
+    z-index: 999;
+    pointer-events: auto;
+  }
+  .modal-content {
+    z-index: 1000;
+    pointer-events: auto;
   }
 }

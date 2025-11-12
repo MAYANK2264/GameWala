@@ -5,6 +5,8 @@ import App from './App.tsx'
 import { BrowserRouter } from 'react-router-dom'
 import { Capacitor } from '@capacitor/core'
 import { StatusBar, Style } from '@capacitor/status-bar'
+import { getRedirectResult } from 'firebase/auth'
+import { auth } from './firebaseConfig'
 
 // Configure a readable status bar on mobile devices
 if (Capacitor.isNativePlatform()) {
@@ -12,6 +14,10 @@ if (Capacitor.isNativePlatform()) {
   StatusBar.setStyle({ style: Style.Dark })
   StatusBar.setBackgroundColor({ color: '#f8f9fa' }).catch(() => {})
 }
+
+getRedirectResult(auth).catch(() => {
+  // No pending redirect result — ignore
+})
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

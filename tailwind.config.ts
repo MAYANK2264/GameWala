@@ -5,7 +5,25 @@ export default {
     './index.html',
     './src/**/*.{ts,tsx}',
   ],
+  safelist: [
+    'text-green-600',
+    'text-red-600',
+    'bg-green-600',
+    'bg-amber-600',
+    'bg-red-600',
+    'bg-neutral-200',
+    'bg-neutral-900',
+    'touch-target',
+    'md:grid-cols-2',
+    'lg:grid-cols-4',
+  ],
   theme: {
+    screens: {
+      sm: '640px',
+      md: '768px',
+      lg: '1024px',
+      xl: '1280px',
+    },
     extend: {
       colors: {
         neutral: {

@@ -88,7 +88,7 @@ export function Settings() {
                         <select
                           value={u.role}
                           onChange={(e) => handleChangeRole(u.uid, e.target.value as UserRole)}
-                          className="rounded-md border-neutral-300"
+                          className="rounded-md border border-neutral-300 px-2 py-2 text-sm"
                           disabled={u.uid === user?.uid}
                         >
                           <option value="pending">pending</option>
@@ -100,16 +100,18 @@ export function Settings() {
                       <td className="py-2 pr-4 space-x-2">
                         {u.active !== false ? (
                           <button
+                            type="button"
                             onClick={() => handleToggleActive(u.uid, false)}
-                            className="px-3 py-1 rounded-md bg-neutral-200 hover:bg-neutral-300"
+                            className="touch-target inline-flex items-center justify-center rounded-md bg-neutral-200 px-3 py-2 text-xs font-medium text-neutral-700 transition hover:bg-neutral-300"
                             disabled={u.uid === user?.uid}
                           >
                             Deactivate
                           </button>
                         ) : (
                           <button
+                            type="button"
                             onClick={() => handleToggleActive(u.uid, true)}
-                            className="px-3 py-1 rounded-md bg-neutral-900 text-white hover:opacity-90"
+                            className="touch-target inline-flex items-center justify-center rounded-md bg-neutral-900 px-3 py-2 text-xs font-medium text-white transition hover:opacity-90"
                           >
                             Reactivate
                           </button>

@@ -60,7 +60,13 @@ export default function SalesRecords() {
     <div className="container-px py-6">
       {role==="owner" && (
         <div className="mb-4">
-          <button onClick={exportCSV} className="px-3 py-2 rounded bg-neutral-900 text-white">Export CSV</button>
+        <button
+          type="button"
+          onClick={exportCSV}
+          className="touch-target inline-flex items-center justify-center rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+        >
+          Export CSV
+        </button>
         </div>
       )}
       <div className="card p-6 mb-8">
@@ -86,9 +92,21 @@ export default function SalesRecords() {
                     <td>₹{sale.acquisitionPrice}</td>
                     <td className={sale.profit > 0 ? 'text-green-700' : 'text-red-700'}>₹{sale.profit}</td>
                     <td>{sale.soldBy||''}</td>
-                    <td>
-                      <button onClick={()=>openEdit(sale)} className="px-2 py-1 rounded bg-neutral-200 hover:bg-neutral-300 mr-1 text-xs">Edit</button>
-                      <button onClick={()=>del(sale)} className="px-2 py-1 rounded bg-red-600 text-white text-xs hover:opacity-90">Delete</button>
+                    <td className="space-x-2">
+                      <button
+                        type="button"
+                        onClick={() => openEdit(sale)}
+                        className="touch-target inline-flex items-center justify-center rounded-md bg-neutral-200 px-3 py-2 text-xs font-medium text-neutral-700 transition hover:bg-neutral-300"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => del(sale)}
+                        className="touch-target inline-flex items-center justify-center rounded-md bg-red-600 px-3 py-2 text-xs font-medium text-white transition hover:bg-red-700"
+                      >
+                        Delete
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -98,25 +116,52 @@ export default function SalesRecords() {
         </div>
       </div>
       {editing && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg w-full max-w-md shadow-lg">
-            <div className="p-4 border-b border-neutral-200 flex items-center justify-between">
-              <div className="font-semibold">Edit Sale</div>
-              <button onClick={()=>setEditing(null)} className="px-2 py-1 rounded bg-neutral-200">Close</button>
+        <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="modal-content w-full max-w-md rounded-lg bg-white shadow-lg">
+            <div className="flex items-center justify-between border-b border-neutral-200 p-4">
+              <div className="text-lg font-semibold">Edit Sale</div>
+              <button
+                type="button"
+                onClick={() => setEditing(null)}
+                className="touch-target inline-flex items-center justify-center rounded-md border border-neutral-200 bg-neutral-100 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-200"
+              >
+                Close
+              </button>
             </div>
-            <div className="p-4 space-y-3">
-              <div>
-                <label className="text-xs text-neutral-600">Sale Price (₹)</label>
-                <input type="number" value={editForm.salePrice} onChange={e=>setEditForm({...editForm,salePrice:e.target.value})} className="w-full rounded-md border-neutral-300"/>
+            <div className="space-y-3 p-4">
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-neutral-700">Sale Price (₹)</label>
+                <input
+                  type="number"
+                  value={editForm.salePrice}
+                  onChange={(e) => setEditForm({ ...editForm, salePrice: e.target.value })}
+                  className="w-full rounded-md border border-neutral-300 px-3 py-2"
+                />
               </div>
-              <div>
-                <label className="text-xs text-neutral-600">Sold By</label>
-                <input value={editForm.soldBy} onChange={e=>setEditForm({...editForm,soldBy:e.target.value})} className="w-full rounded-md border-neutral-300"/>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-neutral-700">Sold By</label>
+                <input
+                  value={editForm.soldBy}
+                  onChange={(e) => setEditForm({ ...editForm, soldBy: e.target.value })}
+                  className="w-full rounded-md border border-neutral-300 px-3 py-2"
+                />
               </div>
             </div>
-            <div className="p-4 border-t border-neutral-200 flex justify-end gap-2">
-              <button onClick={()=>setEditing(null)} className="px-3 py-2 rounded-md bg-neutral-200">Cancel</button>
-              <button onClick={submitEdit} className="px-3 py-2 rounded-md bg-neutral-900 text-white">Save</button>
+            <div className="flex justify-end gap-2 border-t border-neutral-200 p-4">
+              <button
+                type="button"
+                onClick={() => setEditing(null)}
+                className="touch-target rounded-md border border-neutral-200 bg-white px-4 py-2 font-medium text-neutral-700 hover:bg-neutral-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={submitEdit}
+                className="touch-target inline-flex items-center justify-center rounded-md bg-neutral-900 px-4 py-2 font-medium text-white transition hover:opacity-90"
+              >
+                Save
+              </button>
             </div>
           </div>
         </div>
