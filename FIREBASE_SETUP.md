@@ -52,11 +52,22 @@ You should see these domains in the list:
 ### What to do:
 Configure OAuth redirect URIs so Google can redirect back to your app after sign-in.
 
+### ⚠️ Important: Finding the Correct Google Cloud Project
+
+**Make sure you're using the correct Google Cloud project linked to your Firebase project!**
+
+1. Go to [Firebase Console](https://console.firebase.google.com) → Select **amewala**
+2. Click **⚙️ Settings** → **Project settings**
+3. Look for **Project ID**: `amewala`
+4. Click **"View in Google Cloud Console"** link to open the correct project
+5. This ensures you're editing the right OAuth credentials
+
 ### Steps:
 1. Open [Google Cloud Console](https://console.cloud.google.com)
-2. Select project: **amewala** (or the project linked to your Firebase project)
+2. **Verify the project dropdown shows: amewala** (if not, select it)
 3. Navigate to: **APIs & Services** → **Credentials**
 4. Find your **OAuth 2.0 Client ID** (look for one with name like "Web client (auto created by Google Service)" or similar)
+   - If you don't see one, see **GOOGLE_CLOUD_SETUP.md** for detailed instructions
 5. Click the **Edit** icon (pencil) next to it
 6. Scroll down to **Authorized redirect URIs** section
 7. Click **Add URI** button
