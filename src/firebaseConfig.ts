@@ -20,14 +20,21 @@ const firebaseConfig = {
 // ✅ Initialize Firebase
 export const app = initializeApp(firebaseConfig)
 
-// ✅ Initialize Firebase Auth with IndexedDB persistence to work in WebViews (Capacitor)
-// If initializeAuth has already been called (hot reload), fall back to getAuth
+// ✅ Initialize Firebase Auth
+// For web browsers, use getAuth (default persistence)
+// For Capacitor/WebView, we'll use initializeAuth with IndexedDB in the auth hook if needed
 let initializedAuth
 try {
-  initializedAuth = initializeAuth(app, { persistence: indexedDBLocalPersistence })
-} catch (_) {
-  // initializeAuth throws if called twice; get existing instance instead
+  // Try to get existing auth instance first (for hot reload)
   initializedAuth = getAuth(app)
+} catch (_) {
+  // If getAuth fails, try initializeAuth (for Capacitor/WebView)
+  try {
+    initializedAuth = initializeAuth(app, { persistence: indexedDBLocalPersistence })
+  } catch (__) {
+    // Fallback: create new instance
+    initializedAuth = getAuth(app)
+  }
 }
 
 // ✅ Export the auth instance

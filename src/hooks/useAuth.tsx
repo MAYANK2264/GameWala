@@ -8,8 +8,6 @@ import {
   getRedirectResult,
   setPersistence,
   browserLocalPersistence,
-  browserSessionPersistence,
-  inMemoryPersistence,
   type User as FirebaseUser,
 } from 'firebase/auth'
 import { auth, db } from '../firebaseConfig'
@@ -28,28 +26,39 @@ export function useAuth() {
   const [inviteEmail, setInviteEmail] = useState('')
 
   useEffect(() => {
+    // Validate auth instance
+    if (!auth) {
+      console.error('[Auth] ❌ Auth instance is not available')
+      setLoading(false)
+      return
+    }
+
     // Debug: Log environment type
     const envType = getEnvironmentType()
     console.log('[Auth] Environment detected:', envType)
     console.log('[Auth] Is WebView:', isWebView())
     console.log('[Auth] Should use redirect:', shouldUseRedirectAuth())
-    console.log('[Auth] Auth domain:', auth.config.authDomain)
+    console.log('[Auth] Auth domain:', auth.config?.authDomain || 'not set')
     console.log('[Auth] Current URL:', typeof window !== 'undefined' ? window.location.href : 'N/A')
 
-    // Ensure local persistence and language before listeners
-    setPersistence(auth, browserLocalPersistence)
-      .then(() => console.log('[Auth] Persistence set to local'))
-      .catch(() => {
-        console.warn('[Auth] Local persistence failed, trying session')
-        return setPersistence(auth, browserSessionPersistence)
-      })
-      .catch(() => {
-        console.warn('[Auth] Session persistence failed, using memory')
-        return setPersistence(auth, inMemoryPersistence)
-      })
-      .catch((e) => console.warn('[Auth] setPersistence failed:', e))
-    
-    auth.languageCode = navigator.language
+    // Set language code
+    try {
+      auth.languageCode = navigator.language
+    } catch (e) {
+      console.warn('[Auth] Failed to set language code:', e)
+    }
+
+    // For WebView/Capacitor, ensure IndexedDB persistence
+    // For regular browsers, use default persistence (don't override)
+    if (isWebView()) {
+      // In WebView, we might need IndexedDB persistence
+      // But only set it if not already set
+      setPersistence(auth, browserLocalPersistence)
+        .then(() => console.log('[Auth] Persistence set to local'))
+        .catch((e) => {
+          console.warn('[Auth] Could not set persistence (may already be set):', e.message)
+        })
+    }
 
     // Resolve pending redirect results (errors included) to avoid getting stuck
     console.log('[Auth] Checking for pending redirect result...')
@@ -59,14 +68,19 @@ export function useAuth() {
           console.log('[Auth] ✅ Redirect result received for user:', res.user.uid, res.user.email)
           setLoginError(null)
         } else {
-          console.log('[Auth] No pending redirect result')
+          console.log('[Auth] No pending redirect result (this is normal)')
         }
       })
       .catch((err) => {
-        console.error('[Auth] ❌ Redirect sign-in failed:', err)
-        // Only show error if it's not a "no redirect" case
-        if (err.code !== 'auth/operation-not-allowed') {
-          setLoginError('We could not complete Google sign-in. Please try again or use the email invite option below.')
+        // Ignore common "no redirect" errors
+        if (err.code === 'auth/operation-not-allowed' || err.code === 'auth/argument-error') {
+          console.log('[Auth] No redirect result to process (normal on first load)')
+        } else {
+          console.error('[Auth] ❌ Redirect sign-in failed:', err.code, err.message)
+          // Only show user-facing error for real issues
+          if (err.code && !err.code.includes('operation-not-allowed') && !err.code.includes('argument-error')) {
+            setLoginError('We could not complete Google sign-in. Please try again or use the email invite option below.')
+          }
         }
       })
 
@@ -121,6 +135,14 @@ export function useAuth() {
       console.log('[Auth] Login already in progress, ignoring')
       return
     }
+
+    // Validate auth instance
+    if (!auth) {
+      console.error('[Auth] ❌ Cannot sign in: Auth instance is not available')
+      setLoginError('Authentication is not initialized. Please refresh the page.')
+      return
+    }
+
     setAuthBusy(true)
     setLoginError(null)
     
