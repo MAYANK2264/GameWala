@@ -8,12 +8,15 @@ import {
   getRedirectResult,
   setPersistence,
   browserLocalPersistence,
+  browserSessionPersistence,
+  inMemoryPersistence,
   type User as FirebaseUser,
 } from 'firebase/auth'
 import { Capacitor } from '@capacitor/core'
 import { auth, db } from '../firebaseConfig'
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
 import isMobileDevice from '../utils/isMobile'
+import type { AuthError } from 'firebase/auth'
 
 export type UserRole = 'owner' | 'staff' | 'pending' | 'inactive'
 
@@ -27,7 +30,10 @@ export function useAuth() {
 
   useEffect(() => {
     // Ensure local persistence and language before listeners
-    setPersistence(auth, browserLocalPersistence).catch((e) => console.warn('setPersistence failed', e))
+    setPersistence(auth, browserLocalPersistence)
+      .catch(() => setPersistence(auth, browserSessionPersistence))
+      .catch(() => setPersistence(auth, inMemoryPersistence))
+      .catch((e) => console.warn('setPersistence failed', e))
     auth.languageCode = navigator.language
 
     // Resolve pending redirect results (errors included) to avoid getting stuck
@@ -88,8 +94,8 @@ export function useAuth() {
     setAuthBusy(true)
     setLoginError(null)
     const provider = new GoogleAuthProvider()
-    // Always show the Google account chooser
     provider.setCustomParameters({ prompt: 'select_account' })
+
     const isStandaloneDisplay =
       typeof window !== 'undefined' && 'matchMedia' in window && window.matchMedia('(display-mode: standalone)').matches
     const navMaybeStandalone =
@@ -97,28 +103,70 @@ export function useAuth() {
     const isIOSStandalone = navMaybeStandalone?.standalone === true
     const shouldRedirect = Capacitor.isNativePlatform() || isMobileDevice() || isStandaloneDisplay || isIOSStandalone
 
+    const handleAuthError = (err: AuthError) => {
+      console.error('Google sign-in failed:', err)
+      switch (err.code) {
+        case 'auth/unauthorized-domain':
+          setLoginError('This domain is not authorized in Firebase Authentication. Add the current host in Firebase settings.')
+          break
+        case 'auth/network-request-failed':
+          setLoginError('Network error during sign-in. Check your connection and try again.')
+          break
+        case 'auth/popup-blocked':
+        case 'auth/popup-closed-by-user':
+          setLoginError('The pop-up was blocked or closed. Please allow pop-ups and try again.')
+          break
+        case 'auth/operation-not-supported-in-this-environment':
+        case 'auth/web-storage-unsupported':
+        case 'auth/webview-unsupported':
+          setLoginError('This environment blocks Google sign-in. Open the app in Chrome or the default browser and retry.')
+          break
+        default:
+          setLoginError('Google sign-in failed. Please try again or contact the workspace owner.')
+      }
+    }
+
+    let redirectTriggered = false
+
+    const attemptRedirect = async () => {
+      redirectTriggered = true
+      await signInWithRedirect(auth, provider)
+    }
+
+    const attemptPopup = async () => {
+      await signInWithPopup(auth, provider)
+    }
+
     try {
       if (shouldRedirect) {
-        await signInWithRedirect(auth, provider)
-        return
+        try {
+          await attemptRedirect()
+          return
+        } catch (err) {
+          redirectTriggered = false
+          console.warn('Redirect sign-in failed, falling back to popup', err)
+          await attemptPopup()
+          return
+        }
       }
-      await signInWithPopup(auth, provider)
-    } catch (e: any) {
-      console.warn('Popup sign-in failed, falling back to redirect', e)
+      await attemptPopup()
+    } catch (err) {
+      const error = err as AuthError
       if (!shouldRedirect) {
         try {
-          await signInWithRedirect(auth, provider)
+          await attemptRedirect()
           return
-        } catch (redirectErr: any) {
-          console.error('Redirect sign-in failed:', redirectErr)
-          setLoginError('Google sign-in was blocked. Please allow pop-ups or use the email invite form.')
+        } catch (redirectErr) {
+          redirectTriggered = false
+          handleAuthError(redirectErr as AuthError)
         }
       } else {
-        console.error('Redirect sign-in failed in embedded platform:', e)
-        setLoginError('Sign-in could not complete in this environment. Please relaunch the app or use the email invite form.')
+        handleAuthError(error)
       }
     } finally {
-      setAuthBusy(false)
+      if (!redirectTriggered) {
+        setAuthBusy(false)
+      }
     }
   }, [authBusy])
 

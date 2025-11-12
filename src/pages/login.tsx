@@ -1,6 +1,8 @@
 import { type FormEvent, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import useAuth from '../hooks/useAuth'
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
+import { db } from '../firebaseConfig'
 
 export function Login() {
   const {
@@ -14,19 +16,37 @@ export function Login() {
     setInviteEmail,
   } = useAuth()
   const [inviteSubmitted, setInviteSubmitted] = useState(false)
+  const [inviteFeedback, setInviteFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
   if (!loading && user) return <Navigate to="/dashboard" replace />
 
-  const handleInviteSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleInviteSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!inviteEmail.trim()) {
-      setLoginError('Enter an email address to request an invite.')
+    const email = inviteEmail.trim().toLowerCase()
+    if (!email) {
+      setInviteFeedback({ type: 'error', message: 'Enter an email address to request an invite.' })
       return
     }
-    setInviteSubmitted(true)
-    setLoginError(
-      'We have noted your invite request. Please notify the workspace owner to approve this email in Firebase Authentication.'
-    )
+
+    try {
+      await addDoc(collection(db, 'inviteRequests'), {
+        email,
+        createdAt: serverTimestamp(),
+        userAgent: navigator.userAgent,
+        status: 'pending',
+      })
+      setInviteSubmitted(true)
+      setInviteFeedback({
+        type: 'success',
+        message: 'Invite request saved. Notify the workspace owner to approve this email in Firebase Authentication.',
+      })
+    } catch (error) {
+      console.error('Failed to store invite request', error)
+      setInviteFeedback({
+        type: 'error',
+        message: 'Failed to submit invite request. Check your connection and try again.',
+      })
+    }
   }
 
   return (
@@ -97,6 +117,19 @@ export function Login() {
               {loginError}
             </div>
           )}
+          {inviteFeedback && (
+            <div
+              className={`rounded-md p-3 text-sm ${
+                inviteFeedback.type === 'success'
+                  ? 'border border-emerald-200 bg-emerald-50 text-emerald-800'
+                  : 'border border-red-200 bg-red-50 text-red-700'
+              }`}
+              role="status"
+              aria-live="polite"
+            >
+              {inviteFeedback.message}
+            </div>
+          )}
         </div>
 
         <form onSubmit={handleInviteSubmit} className="space-y-3">
@@ -111,6 +144,8 @@ export function Login() {
               onChange={(event) => {
                 setInviteEmail(event.target.value)
                 if (loginError) setLoginError(null)
+                if (inviteFeedback) setInviteFeedback(null)
+                if (inviteSubmitted) setInviteSubmitted(false)
               }}
               placeholder="your@company.com"
               className="w-full rounded-md border border-neutral-300 px-3 py-2 text-base"
