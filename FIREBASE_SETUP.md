@@ -60,28 +60,57 @@ Configure OAuth redirect URIs so Google can redirect back to your app after sign
 5. Click the **Edit** icon (pencil) next to it
 6. Scroll down to **Authorized redirect URIs** section
 7. Click **Add URI** button
-8. Add these URLs **one at a time**:
+8. Add these **complete URLs** (copy and paste exactly as shown):
 
    ```
    https://amewala.firebaseapp.com/__/auth/handler
    ```
+   
    ```
    https://amewala.web.app/__/auth/handler
    ```
+   
    ```
    http://localhost:5173/__/auth/handler
    ```
+   
    ```
    http://localhost:3000/__/auth/handler
    ```
 
 9. Click **Save** button at the bottom
 
+### Understanding the Redirect URI Format:
+
+The redirect URI has **3 parts**:
+
+```
+https://amewala.firebaseapp.com/__/auth/handler
+│     │                        │                │
+│     │                        │                └─ Path (Firebase endpoint)
+│     │                        └─────────────────── Separator (double slash)
+│     └────────────────────────────────────────── Domain
+└───────────────────────────────────────────────────── Protocol
+```
+
+**Breakdown:**
+- **Protocol:** `https://` (or `http://` for localhost)
+- **Domain:** `amewala.firebaseapp.com` (your Firebase domain)
+- **Path:** `/__/auth/handler` (Firebase's fixed endpoint for OAuth callbacks)
+
+**Why `/__/auth/handler`?**
+- This is Firebase's **built-in endpoint** for handling OAuth redirects
+- When Google redirects back after sign-in, it goes to this path on your domain
+- Firebase automatically processes the OAuth response at this endpoint
+- **You don't need to create this route** - Firebase handles it automatically
+- **You just need to tell Google Cloud Console** that this is an allowed redirect destination
+
 ### Important notes:
-- ✅ The path `/__/auth/handler` is required - Firebase uses this specific endpoint
-- ✅ Use `https://` for production domains
-- ✅ Use `http://` for localhost (development)
+- ✅ Copy the **entire URL** including `/__/auth/handler` - don't just add the domain
+- ✅ Use `https://` for production domains (amewala.firebaseapp.com, amewala.web.app)
+- ✅ Use `http://` for localhost (development only)
 - ✅ Include the port number for localhost (5173 for Vite, 3000 if you use that)
+- ✅ The path `/__/auth/handler` is **fixed by Firebase** - you cannot change it
 
 ### Expected result:
 After saving, you should see all redirect URIs listed in the OAuth client configuration.

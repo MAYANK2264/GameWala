@@ -72,7 +72,14 @@ If your Google OAuth client ID has origin restrictions, you need to add redirect
    - `http://localhost:3000/__/auth/handler` (if you use port 3000 for local dev)
 7. Click **Save**
 
-**Important:** The redirect URIs must match exactly, including the `/__/auth/handler` path. Firebase uses this specific path for OAuth callbacks.
+**Important:** The redirect URIs must be complete URLs including the `/__/auth/handler` path. 
+
+**Format:** `https://your-domain.com/__/auth/handler`
+
+- The `/__/auth/handler` is Firebase's built-in endpoint for OAuth callbacks
+- You don't create this route - Firebase handles it automatically
+- You just need to add the complete URL to Google Cloud Console
+- Example: `https://amewala.firebaseapp.com/__/auth/handler` (not just `https://amewala.firebaseapp.com`)
 
 ### Step 3: Android APK Configuration
 
