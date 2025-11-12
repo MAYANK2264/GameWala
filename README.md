@@ -42,40 +42,48 @@ firebase deploy
 
 ## Firebase Authentication Setup for Web & Android APK
 
-### Required Authorized Domains
+### Step 1: Firebase Console - Authorized Domains
 
-For Google Sign-In to work in both web and Android APK builds, you **must** add the following domains in Firebase Console:
+For Google Sign-In to work in both web and Android APK builds, you **must** add the following domains:
 
-1. Go to **Firebase Console** → **Authentication** → **Settings** → **Authorized domains**
-2. Add these domains (if not already present):
+1. Go to **Firebase Console**: https://console.firebase.google.com
+2. Select your project: **amewala**
+3. Navigate to: **Authentication** → **Settings** → **Authorized domains** tab
+4. Click **Add domain** and add these domains (one at a time, if not already present):
    - `localhost`
-   - `amewala.web.app` (or your Firebase hosting domain)
-   - `amewala.firebaseapp.com` (or your Firebase project domain)
-   - `capacitor://localhost` (for Capacitor WebView)
-   - `http://localhost` (for local development)
+   - `amewala.web.app`
+   - `amewala.firebaseapp.com`
 
-### OAuth Redirect URIs
+**Note:** Do NOT add `capacitor://localhost` or `http://localhost` as domains - these are URL schemes, not domains. The Android app will use the Firebase domains above for OAuth redirects.
 
-If your Google OAuth client ID has origin restrictions:
+### Step 2: Google Cloud Console - OAuth Redirect URIs
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com) → **APIs & Services** → **Credentials**
-2. Find your OAuth 2.0 Client ID used by Firebase
-3. Add these **Authorized redirect URIs**:
+If your Google OAuth client ID has origin restrictions, you need to add redirect URIs:
+
+1. Go to **Google Cloud Console**: https://console.cloud.google.com
+2. Select your project: **amewala** (or the project linked to Firebase)
+3. Navigate to: **APIs & Services** → **Credentials**
+4. Find your **OAuth 2.0 Client ID** (the one used by Firebase Authentication)
+5. Click **Edit** (pencil icon)
+6. In **Authorized redirect URIs** section, click **Add URI** and add these URLs (one at a time):
    - `https://amewala.firebaseapp.com/__/auth/handler`
    - `https://amewala.web.app/__/auth/handler`
-   - `capacitor://localhost/__/auth/handler`
-   - `http://localhost:5173/__/auth/handler` (for local dev)
+   - `http://localhost:5173/__/auth/handler` (for local development)
+   - `http://localhost:3000/__/auth/handler` (if you use port 3000 for local dev)
+7. Click **Save**
 
-### Android APK Configuration
+**Important:** The redirect URIs must match exactly, including the `/__/auth/handler` path. Firebase uses this specific path for OAuth callbacks.
 
-The Android manifest (`android/app/src/main/AndroidManifest.xml`) includes intent filters to handle OAuth redirects:
+### Step 3: Android APK Configuration
 
-- `https://amewala.firebaseapp.com`
-- `https://amewala.web.app`
-- `capacitor://localhost`
-- `http://localhost`
+The Android manifest (`android/app/src/main/AndroidManifest.xml`) includes intent filters to handle OAuth redirects. These are already configured and allow Firebase Auth redirects to return to the app after Google sign-in:
 
-These allow Firebase Auth redirects to return to the app after Google sign-in.
+- `https://amewala.firebaseapp.com` ✅
+- `https://amewala.web.app` ✅
+- `capacitor://localhost` ✅ (URL scheme for Capacitor, not a domain)
+- `http://localhost` ✅ (for local testing)
+
+**No action needed** - these are already set up in the code.
 
 ### Debugging Authentication
 
