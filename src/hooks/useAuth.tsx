@@ -12,10 +12,9 @@ import {
   inMemoryPersistence,
   type User as FirebaseUser,
 } from 'firebase/auth'
-import { Capacitor } from '@capacitor/core'
 import { auth, db } from '../firebaseConfig'
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
-import isMobileDevice from '../utils/isMobile'
+import { shouldUseRedirectAuth, getEnvironmentType, isWebView } from '../utils/environment'
 import type { AuthError } from 'firebase/auth'
 
 export type UserRole = 'owner' | 'staff' | 'pending' | 'inactive'
@@ -29,39 +28,67 @@ export function useAuth() {
   const [inviteEmail, setInviteEmail] = useState('')
 
   useEffect(() => {
+    // Debug: Log environment type
+    const envType = getEnvironmentType()
+    console.log('[Auth] Environment detected:', envType)
+    console.log('[Auth] Is WebView:', isWebView())
+    console.log('[Auth] Should use redirect:', shouldUseRedirectAuth())
+    console.log('[Auth] Auth domain:', auth.config.authDomain)
+    console.log('[Auth] Current URL:', typeof window !== 'undefined' ? window.location.href : 'N/A')
+
     // Ensure local persistence and language before listeners
     setPersistence(auth, browserLocalPersistence)
-      .catch(() => setPersistence(auth, browserSessionPersistence))
-      .catch(() => setPersistence(auth, inMemoryPersistence))
-      .catch((e) => console.warn('setPersistence failed', e))
+      .then(() => console.log('[Auth] Persistence set to local'))
+      .catch(() => {
+        console.warn('[Auth] Local persistence failed, trying session')
+        return setPersistence(auth, browserSessionPersistence)
+      })
+      .catch(() => {
+        console.warn('[Auth] Session persistence failed, using memory')
+        return setPersistence(auth, inMemoryPersistence)
+      })
+      .catch((e) => console.warn('[Auth] setPersistence failed:', e))
+    
     auth.languageCode = navigator.language
 
     // Resolve pending redirect results (errors included) to avoid getting stuck
+    console.log('[Auth] Checking for pending redirect result...')
     getRedirectResult(auth)
       .then((res) => {
         if (res?.user) {
-          console.log('Redirect result received for user:', res.user.uid)
+          console.log('[Auth] ✅ Redirect result received for user:', res.user.uid, res.user.email)
           setLoginError(null)
+        } else {
+          console.log('[Auth] No pending redirect result')
         }
       })
       .catch((err) => {
-        console.error('Redirect sign-in failed:', err)
-        setLoginError('We could not complete Google sign-in. Please try again or use the email invite option below.')
+        console.error('[Auth] ❌ Redirect sign-in failed:', err)
+        // Only show error if it's not a "no redirect" case
+        if (err.code !== 'auth/operation-not-allowed') {
+          setLoginError('We could not complete Google sign-in. Please try again or use the email invite option below.')
+        }
       })
 
     const unsub = onAuthStateChanged(auth, async (fbUser) => {
+      console.log('[Auth] 🔄 Auth state changed:', fbUser ? `User: ${fbUser.uid} (${fbUser.email})` : 'No user')
       setUser(fbUser)
-      if (fbUser) console.log('Auth state changed user:', fbUser.uid)
+      if (fbUser) {
+        console.log('[Auth] ✅ User authenticated:', fbUser.uid, fbUser.email)
+      }
       if (!fbUser) {
+        console.log('[Auth] 👤 No user, setting role to null')
         setRole(null)
         setLoading(false)
         return
       }
 
       try {
+        console.log('[Auth] 📄 Fetching user document from Firestore...')
         const userRef = doc(db, 'users', fbUser.uid)
         const snap = await getDoc(userRef)
         if (!snap.exists()) {
+          console.log('[Auth] 📝 Creating new user document...')
           await setDoc(userRef, {
             uid: fbUser.uid,
             email: fbUser.email ?? null,
@@ -70,38 +97,44 @@ export function useAuth() {
             createdAt: serverTimestamp(),
             active: true,
           })
+          console.log('[Auth] ✅ User document created with role: pending')
           setRole('pending')
         } else {
           const data = snap.data() as { role?: UserRole; active?: boolean }
-          if (data.active === false) {
-            setRole('inactive')
-          } else {
-            setRole((data.role as UserRole) ?? 'pending')
-          }
+          const userRole = data.active === false ? 'inactive' : ((data.role as UserRole) ?? 'pending')
+          console.log('[Auth] ✅ User document found, role:', userRole)
+          setRole(userRole)
         }
       } catch (err) {
-        console.error('Failed to read/create user doc:', err)
+        console.error('[Auth] ❌ Failed to read/create user doc:', err)
         setRole('pending')
       } finally {
         setLoading(false)
+        console.log('[Auth] ✅ Auth initialization complete')
       }
     })
     return () => unsub()
   }, [])
 
   const loginWithGoogle = useCallback(async () => {
-    if (authBusy) return
+    if (authBusy) {
+      console.log('[Auth] Login already in progress, ignoring')
+      return
+    }
     setAuthBusy(true)
     setLoginError(null)
+    
+    const envType = getEnvironmentType()
+    console.log('[Auth] 🔐 Starting Google sign-in in:', envType)
+    
     const provider = new GoogleAuthProvider()
     provider.setCustomParameters({ prompt: 'select_account' })
+    provider.addScope('email')
+    provider.addScope('profile')
 
-    const isStandaloneDisplay =
-      typeof window !== 'undefined' && 'matchMedia' in window && window.matchMedia('(display-mode: standalone)').matches
-    const navMaybeStandalone =
-      typeof window !== 'undefined' ? (window.navigator as unknown as { standalone?: boolean }) : undefined
-    const isIOSStandalone = navMaybeStandalone?.standalone === true
-    const shouldRedirect = Capacitor.isNativePlatform() || isMobileDevice() || isStandaloneDisplay || isIOSStandalone
+    // Use improved environment detection
+    const shouldRedirect = shouldUseRedirectAuth()
+    console.log('[Auth] Will use redirect flow:', shouldRedirect)
 
     const handleAuthError = (err: AuthError) => {
       console.error('Google sign-in failed:', err)
@@ -126,47 +159,83 @@ export function useAuth() {
       }
     }
 
-    let redirectTriggered = false
-
     const attemptRedirect = async () => {
-      redirectTriggered = true
+      console.log('[Auth] 🔄 Attempting signInWithRedirect...')
+      console.log('[Auth] Redirect URL will be:', window.location.origin)
       await signInWithRedirect(auth, provider)
+      console.log('[Auth] ✅ Redirect initiated, page will navigate')
+      // Page will navigate, so we don't reset authBusy here
     }
 
     const attemptPopup = async () => {
-      await signInWithPopup(auth, provider)
+      console.log('[Auth] 🔄 Attempting signInWithPopup...')
+      const result = await signInWithPopup(auth, provider)
+      console.log('[Auth] ✅ Popup sign-in successful:', result.user.uid)
+      return result
     }
 
     try {
       if (shouldRedirect) {
         try {
           await attemptRedirect()
+          // If redirect succeeds, the page will navigate, so we don't reset authBusy
           return
         } catch (err) {
-          redirectTriggered = false
-          console.warn('Redirect sign-in failed, falling back to popup', err)
-          await attemptPopup()
-          return
-        }
-      }
-      await attemptPopup()
-    } catch (err) {
-      const error = err as AuthError
-      if (!shouldRedirect) {
-        try {
-          await attemptRedirect()
-          return
-        } catch (redirectErr) {
-          redirectTriggered = false
-          handleAuthError(redirectErr as AuthError)
+          const error = err as AuthError
+          console.error('[Auth] ❌ Redirect sign-in failed:', error.code, error.message)
+          
+          // In WebView, if redirect fails, we might need to show an error
+          // since popup likely won't work either
+          if (isWebView()) {
+            handleAuthError(error)
+            setAuthBusy(false)
+            return
+          }
+          
+          // Fallback to popup for non-WebView environments
+          console.log('[Auth] 🔄 Falling back to popup...')
+          try {
+            await attemptPopup()
+            setAuthBusy(false)
+            return
+          } catch (popupErr) {
+            handleAuthError(popupErr as AuthError)
+            setAuthBusy(false)
+            return
+          }
         }
       } else {
-        handleAuthError(error)
+        // Try popup first for browser environments
+        try {
+          await attemptPopup()
+          setAuthBusy(false)
+          return
+        } catch (err) {
+          const error = err as AuthError
+          console.warn('[Auth] ⚠️ Popup failed, trying redirect:', error.code)
+          
+          // Fallback to redirect if popup is blocked
+          if (error.code === 'auth/popup-blocked' || error.code === 'auth/popup-closed-by-user') {
+            try {
+              await attemptRedirect()
+              return // Page will navigate
+            } catch (redirectErr) {
+              handleAuthError(redirectErr as AuthError)
+              setAuthBusy(false)
+              return
+            }
+          } else {
+            handleAuthError(error)
+            setAuthBusy(false)
+            return
+          }
+        }
       }
-    } finally {
-      if (!redirectTriggered) {
-        setAuthBusy(false)
-      }
+    } catch (err) {
+      const error = err as AuthError
+      console.error('[Auth] ❌ Unexpected error during sign-in:', error)
+      handleAuthError(error)
+      setAuthBusy(false)
     }
   }, [authBusy])
 
