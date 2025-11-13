@@ -23,7 +23,6 @@ export function useAuth() {
   const [loading, setLoading] = useState(true)
   const [authBusy, setAuthBusy] = useState(false)
   const [loginError, setLoginError] = useState<string | null>(null)
-  const [inviteEmail, setInviteEmail] = useState('')
 
   useEffect(() => {
     // Validate auth instance
@@ -79,7 +78,7 @@ export function useAuth() {
           console.error('[Auth] ❌ Redirect sign-in failed:', err.code, err.message)
           // Only show user-facing error for real issues
           if (err.code && !err.code.includes('operation-not-allowed') && !err.code.includes('argument-error')) {
-            setLoginError('We could not complete Google sign-in. Please try again or use the email invite option below.')
+            setLoginError('We could not complete Google sign-in. Please try again.')
           }
         }
       })
@@ -159,25 +158,41 @@ export function useAuth() {
     console.log('[Auth] Will use redirect flow:', shouldRedirect)
 
     const handleAuthError = (err: AuthError) => {
-      console.error('Google sign-in failed:', err)
+      console.error('[Auth] ❌ Google sign-in failed:', err.code, err.message)
+      console.error('[Auth] Full error:', err)
+      
+      // Provide specific error messages
       switch (err.code) {
         case 'auth/unauthorized-domain':
-          setLoginError('This domain is not authorized in Firebase Authentication. Add the current host in Firebase settings.')
+          setLoginError('This domain is not authorized. Please add it in Firebase Console → Authentication → Settings → Authorized domains.')
           break
         case 'auth/network-request-failed':
-          setLoginError('Network error during sign-in. Check your connection and try again.')
+          setLoginError('Network error. Check your internet connection and try again.')
           break
         case 'auth/popup-blocked':
         case 'auth/popup-closed-by-user':
-          setLoginError('The pop-up was blocked or closed. Please allow pop-ups and try again.')
+          setLoginError('Sign-in popup was blocked. Please allow pop-ups and try again.')
           break
         case 'auth/operation-not-supported-in-this-environment':
         case 'auth/web-storage-unsupported':
         case 'auth/webview-unsupported':
-          setLoginError('This environment blocks Google sign-in. Open the app in Chrome or the default browser and retry.')
+          setLoginError('This environment does not support Google sign-in. Please use a supported browser.')
+          break
+        case 'auth/argument-error':
+          setLoginError('Authentication configuration error. Please check Firebase settings.')
+          break
+        case 'auth/redirect-cancelled-by-user':
+          setLoginError('Sign-in was cancelled. Please try again.')
+          break
+        case 'auth/redirect-operation-pending':
+          setLoginError('Sign-in is already in progress. Please wait...')
           break
         default:
-          setLoginError('Google sign-in failed. Please try again or contact the workspace owner.')
+          // Show the actual error code for debugging
+          const errorMsg = err.code 
+            ? `Sign-in failed: ${err.code}. ${err.message || 'Please try again.'}`
+            : 'Google sign-in failed. Please try again or contact support.'
+          setLoginError(errorMsg)
       }
     }
 
@@ -185,15 +200,32 @@ export function useAuth() {
       console.log('[Auth] 🔄 Attempting signInWithRedirect...')
       console.log('[Auth] Current origin:', window.location.origin)
       console.log('[Auth] Current href:', window.location.href)
+      console.log('[Auth] Auth domain:', auth.config?.authDomain)
       
       // For Capacitor/WebView, ensure we're using the app's origin
       // Firebase will redirect back to the current origin
       try {
+        // Clear any previous redirect state
+        await getRedirectResult(auth).catch(() => {
+          // Ignore errors from checking redirect result
+        })
+        
+        console.log('[Auth] Starting redirect flow...')
         await signInWithRedirect(auth, provider)
-        console.log('[Auth] ✅ Redirect initiated, page will navigate')
+        console.log('[Auth] ✅ Redirect initiated successfully, page will navigate')
         // Page will navigate, so we don't reset authBusy here
       } catch (redirectErr) {
-        console.error('[Auth] Redirect error:', redirectErr)
+        const error = redirectErr as AuthError
+        console.error('[Auth] ❌ Redirect error:', error.code, error.message)
+        console.error('[Auth] Redirect error details:', redirectErr)
+        
+        // If redirect is already pending, that's actually okay - just wait
+        if (error.code === 'auth/redirect-operation-pending') {
+          console.log('[Auth] Redirect already in progress, waiting...')
+          // Don't throw - let it continue
+          return
+        }
+        
         throw redirectErr
       }
     }
@@ -210,20 +242,26 @@ export function useAuth() {
         try {
           await attemptRedirect()
           // If redirect succeeds, the page will navigate, so we don't reset authBusy
+          // Set a timeout to reset authBusy if redirect doesn't complete (user might cancel)
+          setTimeout(() => {
+            if (authBusy) {
+              console.warn('[Auth] ⚠️ Redirect timeout - user may have cancelled')
+              setAuthBusy(false)
+            }
+          }, 30000) // 30 seconds timeout
           return
         } catch (err) {
           const error = err as AuthError
           console.error('[Auth] ❌ Redirect sign-in failed:', error.code, error.message)
           
-          // In WebView, if redirect fails, we might need to show an error
-          // since popup likely won't work either
+          // In WebView, if redirect fails, show error since popup won't work
           if (isWebView()) {
             handleAuthError(error)
             setAuthBusy(false)
             return
           }
           
-          // Fallback to popup for non-WebView environments
+          // Fallback to popup for non-WebView environments (mobile browser)
           console.log('[Auth] 🔄 Falling back to popup...')
           try {
             await attemptPopup()
@@ -282,12 +320,10 @@ export function useAuth() {
       authBusy,
       loginError,
       setLoginError,
-      inviteEmail,
-      setInviteEmail,
       loginWithGoogle,
       logout,
     }),
-    [user, role, loading, authBusy, loginError, inviteEmail, loginWithGoogle, logout]
+    [user, role, loading, authBusy, loginError, loginWithGoogle, logout]
   )
 }
 

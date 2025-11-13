@@ -6,7 +6,7 @@ const linkActive = 'bg-neutral-200 text-neutral-900'
 const linkInactive = 'text-neutral-700 hover:bg-neutral-100'
 
 export function TopNav() {
-  const { logout } = useAuth()
+  const { user, logout } = useAuth()
   const navItems = [
     { to: '/dashboard', label: 'Dashboard' },
     { to: '/inventory', label: 'Inventory' },
@@ -46,15 +46,17 @@ export function TopNav() {
               ))}
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={logout}
-              className="touch-target inline-flex items-center justify-center rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
-            >
-              Logout
-            </button>
-          </div>
+          {user && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={logout}
+                className="touch-target inline-flex items-center justify-center rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
+              >
+                Logout
+              </button>
+            </div>
+          )}
         </div>
       </div>
       <div className="border-t border-neutral-200 md:hidden">
