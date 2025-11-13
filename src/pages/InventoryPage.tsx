@@ -442,7 +442,7 @@ export default function InventoryPage() {
                 </button>
               </th>
               <th scope="col" className="py-2 px-3">From</th>
-              <th scope="col" className="py-2 px-3">Price</th>
+              <th scope="col" className="py-2 px-3">Selling Price</th>
               <th scope="col" className="py-2 px-3">Status</th>
               <th scope="col" className="py-2 px-3">Barcode</th>
               <th scope="col" className="py-2 px-3">Actions</th>
@@ -616,7 +616,7 @@ export default function InventoryPage() {
                 </button>
               </th>
               <th scope="col" className="py-2 px-3">From</th>
-              <th scope="col" className="py-2 px-3">Price</th>
+              <th scope="col" className="py-2 px-3">Selling Price</th>
               <th scope="col" className="py-2 px-3">Status</th>
               <th scope="col" className="py-2 px-3">Barcode</th>
               <th scope="col" className="py-2 px-3">Actions</th>
