@@ -340,7 +340,7 @@ export default function UnifiedScanner({ onScan, onStatusChange, onError }: Unif
 
   return (
     <div className="space-y-4">
-      <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-neutral-200 bg-neutral-900 text-white">
+      <div className="relative w-full overflow-hidden rounded-xl border border-neutral-200 bg-neutral-900 text-white" style={{ aspectRatio: '4/3', minHeight: '300px' }}>
         <div id={containerId} className="h-full w-full" />
         {!isScanning && (
           <div className="absolute inset-0 flex items-center justify-center bg-neutral-900/70 px-4 text-center text-sm text-neutral-100">

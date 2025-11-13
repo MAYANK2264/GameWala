@@ -22,8 +22,8 @@ export default function ScannerModal({ isOpen, onClose, onScan }: ScannerModalPr
   if (!isOpen) return null
 
   return (
-    <div className="modal-backdrop fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4">
-      <div className="modal-content w-full max-w-2xl rounded-lg bg-white shadow-2xl">
+    <div className="modal-backdrop fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-2 sm:p-4">
+      <div className="modal-content w-full max-w-4xl rounded-lg bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-neutral-200 p-4">
           <h3 className="text-lg font-semibold">Scan Barcode</h3>
           <button
@@ -34,7 +34,7 @@ export default function ScannerModal({ isOpen, onClose, onScan }: ScannerModalPr
             Close
           </button>
         </div>
-        <div className="p-4">
+        <div className="p-2 sm:p-4">
           <UnifiedScanner
             onScan={handleScan}
             onError={(error) => {

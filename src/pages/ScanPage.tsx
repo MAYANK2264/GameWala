@@ -6,6 +6,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import type { Product } from '../types/product'
 import { useNavigate } from 'react-router-dom'
 import ScannerModal from '../components/ScannerModal'
+import { usePullToRefresh } from '../hooks/usePullToRefresh'
 
 // Component for collapsible notes
 function ProductNotes({ notes }: { notes: string }) {
@@ -49,6 +50,18 @@ export default function ScanPage() {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
   const audioChunks = useRef<Blob[]>([])
   const navigate = useNavigate()
+
+  // Pull to refresh
+  usePullToRefresh({
+    onRefresh: async () => {
+      if (barcode) {
+        const fetched = await getProductByBarcode(barcode.trim())
+        setProduct(fetched)
+        if (!fetched) setError('No product found for this barcode.')
+      }
+    },
+    enabled: true,
+  })
 
   const handleScannedCode = async (code: string) => {
     setBarcode(code)

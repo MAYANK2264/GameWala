@@ -8,6 +8,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import BarcodeLabel from '../components/BarcodeLabel'
 import AutocompleteInput from '../components/AutocompleteInput'
 import { addSuggestion } from '../utils/autocomplete'
+import { usePullToRefresh } from '../hooks/usePullToRefresh'
 
 // Component for collapsible notes
 function ProductNotes({ notes }: { notes: string }) {
@@ -43,15 +44,15 @@ type FormState = {
   notes: string
 }
 
-const defaultForm = (): FormState => ({
+const defaultForm = (view: 'shop' | 'repair' = 'shop'): FormState => ({
   barcode: `P${Date.now()}`,
   type: '',
   brand: '',
-  condition: 'new',
+  condition: view === 'repair' ? 'good' : 'new',
   sellingPrice: '',
   acquiredDate: new Date().toISOString().slice(0, 10),
   acquiredFrom: '',
-  customerPhone: '', // NEW
+  customerPhone: '',
   notes: '',
 })
 
@@ -83,6 +84,14 @@ export default function InventoryPage() {
     loadProducts()
   }, [loadProducts])
 
+  // Pull to refresh
+  usePullToRefresh({
+    onRefresh: async () => {
+      await loadProducts()
+    },
+    enabled: true,
+  })
+
   const filtered = useMemo(() => {
     const q = query.toLowerCase()
     const base = products.filter(p =>
@@ -103,7 +112,7 @@ export default function InventoryPage() {
 
   const openAdd = () => {
     setEditingId(null)
-    setForm(defaultForm())
+    setForm(defaultForm(view))
     setShowModal(true)
   }
 
@@ -399,7 +408,7 @@ export default function InventoryPage() {
                   <ProductNotes notes={p.notes} />
                 )}
                 <div className="mt-3">
-                  <BarcodeLabel code={p.barcode} brand={p.brand} productType={p.type} />
+                  <BarcodeLabel code={p.barcode} brand={p.brand} productType={p.type} sellingPrice={p.acquisitionPrice} />
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <button
@@ -505,7 +514,7 @@ export default function InventoryPage() {
                       <option value="sold">sold</option>
                     </select>
                   </td>
-                  <td className="py-2 px-3"><BarcodeLabel code={p.barcode} brand={p.brand} productType={p.type} /></td>
+                  <td className="py-2 px-3"><BarcodeLabel code={p.barcode} brand={p.brand} productType={p.type} sellingPrice={p.acquisitionPrice} /></td>
                   <td className="py-2 px-3 space-x-2">
                     <button
                       type="button"
@@ -600,7 +609,7 @@ export default function InventoryPage() {
                   <ProductNotes notes={p.notes} />
                 )}
                 <div className="mt-3">
-                  <BarcodeLabel code={p.barcode} brand={p.brand} productType={p.type} />
+                  <BarcodeLabel code={p.barcode} brand={p.brand} productType={p.type} sellingPrice={p.acquisitionPrice} />
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <button
@@ -692,7 +701,7 @@ export default function InventoryPage() {
                       <option value="sold">sold</option>
                     </select>
                   </td>
-                  <td className="py-2 px-3"><BarcodeLabel code={p.barcode} brand={p.brand} productType={p.type} /></td>
+                  <td className="py-2 px-3"><BarcodeLabel code={p.barcode} brand={p.brand} productType={p.type} sellingPrice={p.acquisitionPrice} /></td>
                   <td className="py-2 px-3 space-x-2">
                     <button
                       type="button"
@@ -767,9 +776,20 @@ export default function InventoryPage() {
                   onChange={(e) => setForm({ ...form, condition: e.target.value })}
                   className="w-full rounded-md border border-neutral-300 px-3 py-2"
                 >
-                  <option value="new">new</option>
-                  <option value="used">used</option>
-                  <option value="refurbished">refurbished</option>
+                  {view === 'repair' ? (
+                    <>
+                      <option value="good">Good</option>
+                      <option value="bad">Bad</option>
+                      <option value="very bad">Very Bad</option>
+                      <option value="not repairable">Not Repairable</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="new">new</option>
+                      <option value="used">used</option>
+                      <option value="refurbished">refurbished</option>
+                    </>
+                  )}
                 </select>
               </div>
               <div className="space-y-1">
