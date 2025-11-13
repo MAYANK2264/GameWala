@@ -14,39 +14,48 @@ public class MainActivity extends BridgeActivity {
     public void onStart() {
         super.onStart();
         
-        // Set proper user agent after bridge is initialized
-        // This fixes the "403: disallowed_useragent" error from Google
+        // Set proper Chrome user agent to fix "403: disallowed_useragent" error
+        // This must be done after the bridge is initialized
         try {
-            WebView webView = getBridge().getWebView();
-            if (webView != null) {
-                // Get current user agent
-                String currentUserAgent = webView.getSettings().getUserAgentString();
-                
-                // Ensure it includes Chrome identifier so Google recognizes it as a secure browser
-                if (!currentUserAgent.contains("Chrome")) {
-                    // Build a proper Chrome Mobile user agent
-                    // Format: Mozilla/5.0 (Linux; Android X.X) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/XXX.0.0.0 Mobile Safari/537.36
-                    String chromeUserAgent = currentUserAgent.replace("Version/", "Chrome/120.0.0.0 Mobile Safari/");
-                    if (!chromeUserAgent.contains("Chrome")) {
-                        // If still no Chrome, append it
-                        chromeUserAgent = currentUserAgent + " Chrome/120.0.0.0 Mobile Safari/537.36";
+            // Use a post-delay to ensure WebView is fully initialized
+            getBridge().getWebView().post(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        WebView webView = getBridge().getWebView();
+                        if (webView != null) {
+                            // Build a proper Chrome Mobile user agent string
+                            // Google requires this exact format to recognize it as a secure browser
+                            String androidVersion = android.os.Build.VERSION.RELEASE;
+                            String chromeUserAgent = String.format(
+                                "Mozilla/5.0 (Linux; Android %s; %s) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+                                androidVersion,
+                                android.os.Build.MODEL
+                            );
+                            
+                            webView.getSettings().setUserAgentString(chromeUserAgent);
+                            
+                            // Enable all required settings
+                            webView.getSettings().setJavaScriptEnabled(true);
+                            webView.getSettings().setDomStorageEnabled(true);
+                            webView.getSettings().setDatabaseEnabled(true);
+                            webView.getSettings().setAllowFileAccess(true);
+                            webView.getSettings().setAllowContentAccess(true);
+                            
+                            // Enable third-party cookies for OAuth
+                            android.webkit.CookieManager cookieManager = android.webkit.CookieManager.getInstance();
+                            cookieManager.setAcceptThirdPartyCookies(webView, true);
+                            cookieManager.setAcceptCookie(true);
+                            
+                            android.util.Log.d("MainActivity", "User agent set to: " + chromeUserAgent);
+                        }
+                    } catch (Exception e) {
+                        android.util.Log.e("MainActivity", "Error setting user agent: " + e.getMessage(), e);
                     }
-                    webView.getSettings().setUserAgentString(chromeUserAgent);
                 }
-                
-                // Ensure all required settings are enabled
-                webView.getSettings().setJavaScriptEnabled(true);
-                webView.getSettings().setDomStorageEnabled(true);
-                webView.getSettings().setDatabaseEnabled(true);
-                webView.getSettings().setAllowFileAccess(true);
-                webView.getSettings().setAllowContentAccess(true);
-                
-                // Enable third-party cookies for OAuth
-                android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
-            }
+            });
         } catch (Exception e) {
-            // Log error but don't crash
-            android.util.Log.e("MainActivity", "Error setting user agent: " + e.getMessage());
+            android.util.Log.e("MainActivity", "Error in onStart: " + e.getMessage(), e);
         }
     }
 }

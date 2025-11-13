@@ -43,6 +43,8 @@ export function isStandalonePWA(): boolean {
  * Determines if we should use redirect flow for authentication
  */
 export function shouldUseRedirectAuth(): boolean {
+  // Always use redirect for WebView to avoid user agent issues
+  // The WebView user agent is configured in MainActivity.java
   return isWebView() || isStandalonePWA()
 }
 
