@@ -8,7 +8,6 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import BarcodeLabel from '../components/BarcodeLabel'
 import AutocompleteInput from '../components/AutocompleteInput'
 import { addSuggestion } from '../utils/autocomplete'
-import { usePullToRefresh } from '../hooks/usePullToRefresh'
 
 // Component for collapsible notes
 function ProductNotes({ notes }: { notes: string }) {
@@ -84,13 +83,6 @@ export default function InventoryPage() {
     loadProducts()
   }, [loadProducts])
 
-  // Pull to refresh
-  usePullToRefresh({
-    onRefresh: async () => {
-      await loadProducts()
-    },
-    enabled: true,
-  })
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase()

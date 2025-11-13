@@ -6,6 +6,7 @@ import {
   signInWithRedirect,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  fetchSignInMethodsForEmail,
   signOut,
   type User as FirebaseUser,
 } from 'firebase/auth'
@@ -192,20 +193,19 @@ export function useAuth() {
         throw new Error('Auth instance is not properly initialized')
       }
       
-      // Don't check for pending redirect here - it's handled in main.tsx
-      // Checking here can cause conflicts
-      
       // For Capacitor/WebView, ensure we're using the app's origin
       // Firebase will redirect back to the current origin
       try {
         console.log('[Auth] Starting redirect flow...')
         console.log('[Auth] Provider:', provider.providerId)
         console.log('[Auth] Redirect will go to:', window.location.origin)
+        console.log('[Auth] Auth domain for redirect:', auth.config.authDomain)
         
         // Call signInWithRedirect - this will navigate away
         await signInWithRedirect(auth, provider)
         console.log('[Auth] ✅ Redirect initiated successfully, page will navigate')
         // Page will navigate, so we don't reset authBusy here
+        // The redirect will be handled by main.tsx when the app returns
       } catch (redirectErr) {
         const error = redirectErr as AuthError
         console.error('[Auth] ❌ Redirect error:', error.code, error.message)
@@ -388,6 +388,23 @@ export function useAuth() {
 
     try {
       console.log('[Auth] 🔐 Signing in with email...')
+      
+      // First, check if the account exists and what sign-in methods it uses
+      try {
+        const methods = await fetchSignInMethodsForEmail(auth, email.trim())
+        console.log('[Auth] Sign-in methods for email:', methods)
+        
+        // If the account exists but uses Google sign-in, show a helpful message
+        if (methods.length > 0 && methods.includes('google.com')) {
+          setLoginError('This email is registered with Google Sign-In. Please use "Sign in with Google" instead.')
+          setAuthBusy(false)
+          return { success: false, error: 'This email is registered with Google Sign-In. Please use "Sign in with Google" instead.' }
+        }
+      } catch (methodError) {
+        // If fetchSignInMethodsForEmail fails, continue with normal sign-in
+        console.log('[Auth] Could not fetch sign-in methods, continuing with email/password sign-in')
+      }
+      
       await signInWithEmailAndPassword(auth, email.trim(), password)
       console.log('[Auth] ✅ Email sign-in successful')
       setAuthBusy(false)
@@ -408,7 +425,17 @@ export function useAuth() {
           errorMessage = 'Please enter a valid email address.'
           break
         case 'auth/invalid-credential':
-          errorMessage = 'Invalid email or password. Please try again.'
+          // Check if it's a Google account
+          try {
+            const methods = await fetchSignInMethodsForEmail(auth, email.trim())
+            if (methods.includes('google.com')) {
+              errorMessage = 'This email is registered with Google Sign-In. Please use "Sign in with Google" instead.'
+            } else {
+              errorMessage = 'Invalid email or password. Please try again.'
+            }
+          } catch {
+            errorMessage = 'Invalid email or password. Please try again.'
+          }
           break
         case 'auth/too-many-requests':
           errorMessage = 'Too many failed attempts. Please try again later.'

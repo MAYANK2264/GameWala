@@ -79,10 +79,8 @@ if (auth && auth.config && auth.config.authDomain) {
     console.log('[App] Hash:', hashParams.substring(0, 100))
   }
   
-  // Only check redirect result if we have auth params or on first load
-  // This prevents unnecessary calls that might cause issues
-  if (hasAuthParams || !window.location.search && !window.location.hash) {
-    getRedirectResult(auth)
+  // Always check for redirect result - Firebase handles "no redirect" gracefully
+  getRedirectResult(auth)
     .then((result) => {
       if (result?.user) {
         console.log('[App] ✅ Firebase Auth redirect completed successfully')
@@ -120,9 +118,6 @@ if (auth && auth.config && auth.config.authDomain) {
         console.log('[App] No redirect result to process')
       }
     })
-  } else {
-    console.log('[App] Skipping redirect check - no auth parameters detected')
-  }
 } else {
   console.error('[App] ❌ Auth instance not available or invalid during initialization')
   console.error('[App] Auth:', auth)

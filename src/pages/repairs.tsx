@@ -3,7 +3,6 @@ import type { Repair, RepairStatus } from '../types/repair'
 import { listRepairs, updateRepair } from '../services/repairs'
 import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd'
 import type { DropResult } from '@hello-pangea/dnd'
-import { usePullToRefresh } from '../hooks/usePullToRefresh'
 
 const STATUSES: RepairStatus[] = ['Received', 'In Progress', 'Repaired', 'Delivered']
 
@@ -22,11 +21,6 @@ export function Repairs() {
     loadRepairs()
   }, [assignee])
 
-  // Pull to refresh
-  usePullToRefresh({
-    onRefresh: loadRepairs,
-    enabled: true,
-  })
 
   const grouped = useMemo(() => {
     const map: Record<RepairStatus, Repair[]> = { 'Received': [], 'In Progress': [], 'Repaired': [], 'Delivered': [] }
