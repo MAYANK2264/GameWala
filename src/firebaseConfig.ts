@@ -5,6 +5,7 @@ import { initializeAuth, indexedDBLocalPersistence, getAuth } from 'firebase/aut
 import { getFirestore } from 'firebase/firestore'
 import { getStorage } from 'firebase/storage'
 import { getAnalytics, isSupported as analyticsIsSupported } from 'firebase/analytics'
+import { Capacitor } from '@capacitor/core'
 
 // ✅ Your Firebase configuration
 const firebaseConfig = {
@@ -21,20 +22,24 @@ const firebaseConfig = {
 export const app = initializeApp(firebaseConfig)
 
 // ✅ Initialize Firebase Auth
-// For web browsers, use getAuth (default persistence)
-// For Capacitor/WebView, we'll use initializeAuth with IndexedDB in the auth hook if needed
+// For Capacitor/WebView, use IndexedDB persistence to handle redirects properly
+// For regular browsers, use default persistence
 let initializedAuth
-try {
-  // Try to get existing auth instance first (for hot reload)
-  initializedAuth = getAuth(app)
-} catch (_) {
-  // If getAuth fails, try initializeAuth (for Capacitor/WebView)
+if (Capacitor.isNativePlatform()) {
+  // For native apps (Android/iOS), use IndexedDB persistence
+  // This ensures session state persists across redirects
   try {
     initializedAuth = initializeAuth(app, { persistence: indexedDBLocalPersistence })
-  } catch (__) {
-    // Fallback: create new instance
+    console.log('[Firebase] Auth initialized with IndexedDB persistence for native platform')
+  } catch (_) {
+    // If already initialized (hot reload), get existing instance
     initializedAuth = getAuth(app)
+    console.log('[Firebase] Using existing auth instance')
   }
+} else {
+  // For web browsers, use default persistence
+  initializedAuth = getAuth(app)
+  console.log('[Firebase] Auth initialized with default persistence for web')
 }
 
 // ✅ Export the auth instance

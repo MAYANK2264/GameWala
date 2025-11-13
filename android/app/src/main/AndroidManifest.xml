@@ -23,24 +23,27 @@
             </intent-filter>
 
             <!-- OAuth redirect handler for Firebase Auth -->
-            <intent-filter>
+            <!-- These intent filters allow the app to handle Firebase Auth redirects -->
+            <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="amewala.firebaseapp.com" />
+                <data android:scheme="https" android:host="amewala.firebaseapp.com" android:pathPrefix="/__/auth" />
             </intent-filter>
-            <intent-filter>
+            <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="amewala.web.app" />
+                <data android:scheme="https" android:host="amewala.web.app" android:pathPrefix="/__/auth" />
             </intent-filter>
+            <!-- Handle Capacitor app origin -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="capacitor" android:host="localhost" />
             </intent-filter>
+            <!-- Handle http://localhost for development -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />

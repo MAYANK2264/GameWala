@@ -183,10 +183,19 @@ export function useAuth() {
 
     const attemptRedirect = async () => {
       console.log('[Auth] 🔄 Attempting signInWithRedirect...')
-      console.log('[Auth] Redirect URL will be:', window.location.origin)
-      await signInWithRedirect(auth, provider)
-      console.log('[Auth] ✅ Redirect initiated, page will navigate')
-      // Page will navigate, so we don't reset authBusy here
+      console.log('[Auth] Current origin:', window.location.origin)
+      console.log('[Auth] Current href:', window.location.href)
+      
+      // For Capacitor/WebView, ensure we're using the app's origin
+      // Firebase will redirect back to the current origin
+      try {
+        await signInWithRedirect(auth, provider)
+        console.log('[Auth] ✅ Redirect initiated, page will navigate')
+        // Page will navigate, so we don't reset authBusy here
+      } catch (redirectErr) {
+        console.error('[Auth] Redirect error:', redirectErr)
+        throw redirectErr
+      }
     }
 
     const attemptPopup = async () => {
