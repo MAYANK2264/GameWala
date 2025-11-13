@@ -153,7 +153,11 @@ export function useAuth() {
         case 'auth/operation-not-supported-in-this-environment':
         case 'auth/web-storage-unsupported':
         case 'auth/webview-unsupported':
-          setLoginError('This environment does not support Google sign-in. Please use a supported browser.')
+          setLoginError('This environment does not support Google sign-in. The app needs to be updated to fix this issue.')
+          break
+        case 'auth/unauthorized-domain':
+          // This might also be the user agent issue
+          setLoginError('Authentication blocked. Please ensure the app is using the latest version with proper browser configuration.')
           break
         case 'auth/argument-error':
           setLoginError('Authentication configuration error. Please check Firebase settings.')
