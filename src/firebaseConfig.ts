@@ -21,24 +21,30 @@ const firebaseConfig = {
 // ✅ Initialize Firebase
 export const app = initializeApp(firebaseConfig)
 
-// ✅ Initialize Firebase Auth
-// Use getAuth by default - it handles persistence automatically
-// Only use initializeAuth if getAuth fails (rare edge case)
+// ✅ Initialize Firebase Auth with proper persistence
+// For web browsers: use getAuth (default persistence - localStorage)
+// For native/WebView: use initializeAuth with IndexedDB persistence
 let initializedAuth
 try {
-  // Try to get existing auth instance first
-  initializedAuth = getAuth(app)
-  console.log('[Firebase] Auth initialized with getAuth()')
+  if (Capacitor.isNativePlatform()) {
+    // For native platforms, explicitly use IndexedDB for better persistence
+    initializedAuth = initializeAuth(app, { persistence: indexedDBLocalPersistence })
+    console.log('[Firebase] Auth initialized with IndexedDB persistence for native platform')
+  } else {
+    // For web browsers, getAuth uses localStorage by default which persists across sessions
+    initializedAuth = getAuth(app)
+    console.log('[Firebase] Auth initialized with getAuth() - localStorage persistence')
+  }
 } catch (error) {
-  // Fallback: if getAuth fails (shouldn't happen), try initializeAuth
-  console.warn('[Firebase] getAuth failed, trying initializeAuth:', error)
+  // Fallback: if initialization fails, try the other method
+  console.warn('[Firebase] Initial auth init failed, trying fallback:', error)
   try {
     if (Capacitor.isNativePlatform()) {
-      initializedAuth = initializeAuth(app, { persistence: indexedDBLocalPersistence })
-      console.log('[Firebase] Auth initialized with IndexedDB persistence for native platform')
+      initializedAuth = getAuth(app)
+      console.log('[Firebase] Auth fallback: using getAuth()')
     } else {
       initializedAuth = initializeAuth(app)
-      console.log('[Firebase] Auth initialized with default persistence')
+      console.log('[Firebase] Auth fallback: using initializeAuth()')
     }
   } catch (initError) {
     console.error('[Firebase] ❌ Failed to initialize auth:', initError)

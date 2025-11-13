@@ -8,6 +8,7 @@ export function Login() {
     loading,
     authBusy,
     loginWithGoogle,
+    loginWithGoogleSwitchAccount,
     signUpWithEmail,
     signInWithEmail,
     loginError,
@@ -225,18 +226,19 @@ export function Login() {
               </div>
             </div>
 
-            {/* Google Sign-In Button */}
-            <button
-              onClick={loginWithGoogle}
-              type="button"
-              disabled={authBusy}
-              className={`touch-target w-full inline-flex items-center justify-center gap-2 font-medium text-base transition ${
-                authBusy
-                  ? 'bg-neutral-400 text-white cursor-not-allowed'
-                  : 'bg-white border-2 border-neutral-300 text-neutral-900 hover:bg-neutral-50'
-              }`}
-              aria-busy={authBusy}
-            >
+            {/* Google Sign-In Buttons */}
+            <div className="space-y-2">
+              <button
+                onClick={loginWithGoogle}
+                type="button"
+                disabled={authBusy}
+                className={`touch-target w-full inline-flex items-center justify-center gap-2 font-medium text-base transition ${
+                  authBusy
+                    ? 'bg-neutral-400 text-white cursor-not-allowed'
+                    : 'bg-white border-2 border-neutral-300 text-neutral-900 hover:bg-neutral-50'
+                }`}
+                aria-busy={authBusy}
+              >
               {authBusy ? (
                 <span className="inline-flex items-center gap-2">
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-neutral-600/70 border-t-transparent" />
@@ -266,6 +268,20 @@ export function Login() {
                 </>
               )}
             </button>
+            <button
+              onClick={loginWithGoogleSwitchAccount}
+              type="button"
+              disabled={authBusy}
+              className={`touch-target w-full inline-flex items-center justify-center gap-2 text-sm font-medium transition ${
+                authBusy
+                  ? 'bg-neutral-300 text-neutral-500 cursor-not-allowed'
+                  : 'text-neutral-600 hover:text-neutral-900 underline'
+              }`}
+              aria-busy={authBusy}
+            >
+              Use a different Google account
+            </button>
+            </div>
 
             {/* Toggle Sign Up / Sign In */}
             <div className="text-center text-sm text-neutral-600">

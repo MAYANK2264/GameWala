@@ -128,7 +128,9 @@ export function useAuth() {
     console.log('[Auth] 🔐 Starting Google sign-in in:', envType)
     
     const provider = new GoogleAuthProvider()
-    provider.setCustomParameters({ prompt: 'select_account' })
+    // Don't force account selection - let Google remember the user
+    // Only show account selector if user explicitly wants to switch accounts
+    provider.setCustomParameters({})
     provider.addScope('email')
     provider.addScope('profile')
 
@@ -190,11 +192,15 @@ export function useAuth() {
         throw new Error('Auth instance is not properly initialized')
       }
       
+      // Don't check for pending redirect here - it's handled in main.tsx
+      // Checking here can cause conflicts
+      
       // For Capacitor/WebView, ensure we're using the app's origin
       // Firebase will redirect back to the current origin
       try {
         console.log('[Auth] Starting redirect flow...')
         console.log('[Auth] Provider:', provider.providerId)
+        console.log('[Auth] Redirect will go to:', window.location.origin)
         
         // Call signInWithRedirect - this will navigate away
         await signInWithRedirect(auth, provider)
@@ -420,6 +426,45 @@ export function useAuth() {
     }
   }, [authBusy])
 
+  const loginWithGoogleSwitchAccount = useCallback(async () => {
+    // Force account selection by setting prompt parameter
+    if (authBusy) {
+      console.log('[Auth] Login already in progress, ignoring')
+      return
+    }
+
+    if (!auth) {
+      console.error('[Auth] ❌ Cannot sign in: Auth instance is not available')
+      setLoginError('Authentication is not initialized. Please refresh the page.')
+      return
+    }
+
+    setAuthBusy(true)
+    setLoginError(null)
+    
+    const provider = new GoogleAuthProvider()
+    // Force account selection
+    provider.setCustomParameters({ prompt: 'select_account' })
+    provider.addScope('email')
+    provider.addScope('profile')
+
+    const shouldRedirect = shouldUseRedirectAuth()
+    
+    try {
+      if (shouldRedirect) {
+        await signInWithRedirect(auth, provider)
+      } else {
+        await signInWithPopup(auth, provider)
+        setAuthBusy(false)
+      }
+    } catch (err) {
+      const error = err as AuthError
+      console.error('[Auth] ❌ Switch account failed:', error.code, error.message)
+      setLoginError(`Failed to switch account: ${error.message || error.code}`)
+      setAuthBusy(false)
+    }
+  }, [authBusy])
+
   const logout = useCallback(async () => {
     await signOut(auth)
   }, [])
@@ -433,11 +478,12 @@ export function useAuth() {
       loginError,
       setLoginError,
       loginWithGoogle,
+      loginWithGoogleSwitchAccount,
       signUpWithEmail,
       signInWithEmail,
       logout,
     }),
-    [user, role, loading, authBusy, loginError, loginWithGoogle, signUpWithEmail, signInWithEmail, logout]
+    [user, role, loading, authBusy, loginError, loginWithGoogle, loginWithGoogleSwitchAccount, signUpWithEmail, signInWithEmail, logout]
   )
 }
 

@@ -56,13 +56,44 @@ if (Capacitor.isNativePlatform()) {
 }
 
 // Only check redirect result if auth is available and properly initialized
+// This handles OAuth redirects that return to the app
 if (auth && auth.config && auth.config.authDomain) {
   console.log('[App] Checking for pending redirect result...')
-  getRedirectResult(auth)
+  console.log('[App] Current URL:', window.location.href)
+  console.log('[App] URL search params:', window.location.search)
+  
+  // Check if we're returning from an OAuth redirect
+  const urlParams = new URLSearchParams(window.location.search)
+  const hashParams = window.location.hash
+  const hasAuthParams = 
+    urlParams.has('code') || 
+    urlParams.has('state') || 
+    urlParams.has('error') ||
+    hashParams.includes('__/auth/') ||
+    hashParams.includes('access_token') ||
+    hashParams.includes('id_token')
+  
+  if (hasAuthParams) {
+    console.log('[App] Detected OAuth redirect parameters, processing...')
+    console.log('[App] Search params:', window.location.search)
+    console.log('[App] Hash:', hashParams.substring(0, 100))
+  }
+  
+  // Only check redirect result if we have auth params or on first load
+  // This prevents unnecessary calls that might cause issues
+  if (hasAuthParams || !window.location.search && !window.location.hash) {
+    getRedirectResult(auth)
     .then((result) => {
       if (result?.user) {
         console.log('[App] ✅ Firebase Auth redirect completed successfully')
         console.log('[App] User:', result.user.uid, result.user.email)
+        // Clear any OAuth parameters from URL to prevent re-processing
+        if (window.history.replaceState) {
+          const cleanUrl = window.location.pathname + (window.location.hash || '')
+          // Remove query parameters but keep hash if present
+          window.history.replaceState({}, document.title, cleanUrl)
+          console.log('[App] Cleaned URL to:', cleanUrl)
+        }
         // The auth state change listener in useAuth will handle the rest
       } else {
         console.log('[App] No pending redirect result (this is normal on first load)')
@@ -73,15 +104,25 @@ if (auth && auth.config && auth.config.authDomain) {
       if (error.code === 'auth/operation-not-allowed') {
         console.log('[App] No redirect result to process (this is normal on first load)')
       } else if (error.code === 'auth/argument-error') {
-        // This might indicate a real problem - log it but don't crash
-        console.warn('[App] ⚠️ Auth argument error when checking redirect:', error.message)
-        console.warn('[App] This might indicate an auth configuration issue')
+        // Check if this is a real error or just "no redirect pending"
+        if (error.message?.includes('no pending') || error.message?.includes('no redirect')) {
+          console.log('[App] No redirect pending (normal)')
+        } else {
+          console.warn('[App] ⚠️ Auth argument error when checking redirect:', error.message)
+          console.warn('[App] This might indicate an auth configuration issue')
+        }
+      } else if (error.code === 'auth/unauthorized-domain') {
+        console.error('[App] ❌ Unauthorized domain error. Check Firebase Console → Authentication → Settings → Authorized domains')
+        console.error('[App] Current origin:', window.location.origin)
       } else if (error.code) {
         console.error('[App] ❌ Error processing redirect result:', error.code, error.message)
       } else {
         console.log('[App] No redirect result to process')
       }
     })
+  } else {
+    console.log('[App] Skipping redirect check - no auth parameters detected')
+  }
 } else {
   console.error('[App] ❌ Auth instance not available or invalid during initialization')
   console.error('[App] Auth:', auth)
