@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from 'react'
+import { useEffect, useMemo, useState, useRef, useCallback } from 'react'
 import type { Product } from '../types/product'
 import { addProduct, deleteProduct, fetchProducts, updateProduct, updateProductStatus } from '../services/inventory'
 import { createRepair } from '../services/repairs'
@@ -6,13 +6,15 @@ import { createSale } from '../services/sales';
 import { storage } from '../firebaseConfig'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import BarcodeLabel from '../components/BarcodeLabel'
+import AutocompleteInput from '../components/AutocompleteInput'
+import { addSuggestion } from '../utils/autocomplete'
 
 type FormState = {
   barcode: string
   type: string
   brand: string
   condition: string
-  acquisitionPrice: string
+  sellingPrice: string
   acquiredDate: string
   acquiredFrom: string
   customerPhone: string; // NEW
@@ -24,7 +26,7 @@ const defaultForm = (): FormState => ({
   type: '',
   brand: '',
   condition: 'new',
-  acquisitionPrice: '',
+  sellingPrice: '',
   acquiredDate: new Date().toISOString().slice(0, 10),
   acquiredFrom: '',
   customerPhone: '', // NEW
@@ -42,15 +44,22 @@ export default function InventoryPage() {
   const [form, setForm] = useState<FormState>(defaultForm())
   const [editingId, setEditingId] = useState<string | null>(null)
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true)
+  // Memoize load function for performance
+  const loadProducts = useCallback(async () => {
+    setLoading(true)
+    try {
       const data = await fetchProducts()
       setProducts(data)
+    } catch (error) {
+      console.error('Failed to load products:', error)
+    } finally {
       setLoading(false)
     }
-    load()
   }, [])
+
+  useEffect(() => {
+    loadProducts()
+  }, [loadProducts])
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase()
@@ -83,7 +92,7 @@ export default function InventoryPage() {
       type: p.type,
       brand: p.brand,
       condition: p.condition,
-      acquisitionPrice: String(p.acquisitionPrice ?? ''),
+      sellingPrice: String(p.acquisitionPrice ?? ''),
       acquiredDate: p.acquiredDate ?? new Date().toISOString().slice(0, 10),
       acquiredFrom: p.acquiredFrom ?? '',
       customerPhone: (p as any).customerPhone ?? '', // NEW
@@ -93,25 +102,30 @@ export default function InventoryPage() {
   }
 
   const handleSubmit = async () => {
-    if (!/^\d{10}$/.test(form.customerPhone)) {
+    if (form.customerPhone && !/^\d{10}$/.test(form.customerPhone)) {
       alert('Enter valid 10-digit phone number');
       return;
     }
+    
+    // Save suggestions for autocomplete
+    if (form.brand.trim()) addSuggestion('brand', form.brand)
+    if (form.type.trim()) addSuggestion('type', form.type)
+    if (form.acquiredFrom.trim()) addSuggestion('acquiredFrom', form.acquiredFrom)
+    if (form.notes.trim()) addSuggestion('notes', form.notes)
+    
     const payload = {
       barcode: form.barcode,
       type: form.type,
       brand: form.brand,
       condition: form.condition,
-      acquisitionPrice: Number(form.acquisitionPrice) || 0,
+      acquisitionPrice: Number(form.sellingPrice) || 0,
       acquiredDate: form.acquiredDate,
-      acquiredFrom: form.acquiredFrom,
-      customerPhone: form.customerPhone, // NEW
+      acquiredFrom: form.condition === 'new' ? '' : form.acquiredFrom, // Hide for new items
+      customerPhone: form.customerPhone,
       notes: form.notes || undefined,
-      // New items go into the current section
       status: view === 'repair' ? 'in_repair' : 'available',
     }
     if (editingId) {
-      // Keep status as-is when editing via this form; exclude status unless you want to change it here
       const { status, ...rest } = payload
       await updateProduct(editingId, rest)
     } else {
@@ -152,14 +166,24 @@ export default function InventoryPage() {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
   const audioChunks = useRef<Blob[]>([])
   const [repairFor, setRepairFor] = useState<Product | null>(null)
-  const [repairCustomerName, setRepairCustomerName] = useState(''); // NEW
-  const [repairCustomerPhone, setRepairCustomerPhone] = useState(''); // NEW
+  const [repairCustomerName, setRepairCustomerName] = useState('')
+  const [repairCustomerPhone, setRepairCustomerPhone] = useState('')
+  const [repairCondition, setRepairCondition] = useState('good')
+  const [repairDeliveryDate, setRepairDeliveryDate] = useState(() => {
+    const date = new Date()
+    date.setDate(date.getDate() + 7) // Default 7 days from now
+    return date.toISOString().slice(0, 10)
+  })
 
   const startRepair = async (p: Product) => {
     setRepairFor(p)
     setRepairCustomerName('')
     setRepairCustomerPhone('')
     setRepairNote('')
+    setRepairCondition('good')
+    const date = new Date()
+    date.setDate(date.getDate() + 7)
+    setRepairDeliveryDate(date.toISOString().slice(0, 10))
     setAudioBlob(null)
     setShowRepairModal(true)
   }
@@ -192,9 +216,11 @@ export default function InventoryPage() {
     const rid = await createRepair({
       productId: repairFor.id,
       customerName: repairCustomerName.trim(),
-      customerPhone: repairCustomerPhone.trim(), // NEW
+      customerPhone: repairCustomerPhone.trim(),
       receivedDate: new Date().toISOString().slice(0,10),
-      expectedDate: new Date(Date.now() + 7*24*60*60*1000).toISOString().slice(0,10),
+      expectedDate: repairDeliveryDate,
+      deliveryDate: repairDeliveryDate,
+      condition: repairCondition,
       faultDescription: repairNote || 'N/A',
       status: 'Received',
       estimate: Number(repairFor.acquisitionPrice) || 0,
@@ -213,10 +239,11 @@ export default function InventoryPage() {
     }
     await changeStatus(repairFor, 'in_repair')
     setShowRepairModal(false)
-    setRepairCustomerName('');
-    setRepairCustomerPhone(''); // reset
-    setRepairNote('');
-    setAudioBlob(null);
+    setRepairCustomerName('')
+    setRepairCustomerPhone('')
+    setRepairNote('')
+    setRepairCondition('good')
+    setAudioBlob(null)
   }
 
   const [showSellModal, setShowSellModal] = useState(false);
@@ -667,17 +694,21 @@ export default function InventoryPage() {
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium text-neutral-700">Brand</label>
-                <input
+                <AutocompleteInput
+                  fieldName="brand"
                   value={form.brand}
-                  onChange={(e) => setForm({ ...form, brand: e.target.value })}
+                  onChange={(value) => setForm({ ...form, brand: value })}
+                  placeholder="Enter brand name"
                   className="w-full rounded-md border border-neutral-300 px-3 py-2"
                 />
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium text-neutral-700">Type</label>
-                <input
+                <AutocompleteInput
+                  fieldName="type"
                   value={form.type}
-                  onChange={(e) => setForm({ ...form, type: e.target.value })}
+                  onChange={(value) => setForm({ ...form, type: value })}
+                  placeholder="Enter product type"
                   className="w-full rounded-md border border-neutral-300 px-3 py-2"
                 />
               </div>
@@ -703,28 +734,33 @@ export default function InventoryPage() {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-sm font-medium text-neutral-700">Acquisition Price</label>
+                <label className="text-sm font-medium text-neutral-700">Selling Price</label>
                 <input
                   type="number"
-                  value={form.acquisitionPrice}
-                  onChange={(e) => setForm({ ...form, acquisitionPrice: e.target.value })}
+                  value={form.sellingPrice}
+                  onChange={(e) => setForm({ ...form, sellingPrice: e.target.value })}
                   className="w-full rounded-md border border-neutral-300 px-3 py-2"
+                  inputMode="numeric"
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-neutral-700">Acquired From</label>
-                <input
-                  value={form.acquiredFrom}
-                  onChange={(e) => setForm({ ...form, acquiredFrom: e.target.value })}
-                  className="w-full rounded-md border border-neutral-300 px-3 py-2"
-                />
-              </div>
+              {form.condition !== 'new' && (
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-neutral-700">Acquired From</label>
+                  <AutocompleteInput
+                    fieldName="acquiredFrom"
+                    value={form.acquiredFrom}
+                    onChange={(value) => setForm({ ...form, acquiredFrom: value })}
+                    placeholder="Enter source"
+                    className="w-full rounded-md border border-neutral-300 px-3 py-2"
+                  />
+                </div>
+              )}
               <div className="space-y-1">
                 <label className="text-sm font-medium text-neutral-700">Phone Number</label>
                 <input
                   type="tel"
                   value={form.customerPhone}
-                  onChange={(e) => setForm({ ...form, customerPhone: e.target.value })}
+                  onChange={(e) => setForm({ ...form, customerPhone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                   className="w-full rounded-md border border-neutral-300 px-3 py-2"
                   placeholder="10 digit phone"
                   maxLength={10}
@@ -734,11 +770,12 @@ export default function InventoryPage() {
               </div>
               <div className="sm:col-span-2 space-y-1">
                 <label className="text-sm font-medium text-neutral-700">Notes</label>
-                <textarea
+                <AutocompleteInput
+                  fieldName="notes"
                   value={form.notes}
-                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                  onChange={(value) => setForm({ ...form, notes: value })}
+                  placeholder="Enter notes"
                   className="w-full rounded-md border border-neutral-300 px-3 py-2"
-                  rows={3}
                 />
               </div>
             </div>
@@ -822,12 +859,35 @@ export default function InventoryPage() {
                  <input
                    type="tel"
                    value={repairCustomerPhone}
-                   onChange={(e) => setRepairCustomerPhone(e.target.value)}
+                   onChange={(e) => setRepairCustomerPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                    className="w-full rounded-md border border-neutral-300 px-3 py-2"
                    placeholder="10 digit phone"
                    maxLength={10}
                    pattern="[0-9]{10}"
                    inputMode="numeric"
+                 />
+               </div>
+               <div className="space-y-1">
+                 <label className="text-sm font-medium text-neutral-700">Product Condition *</label>
+                 <select
+                   value={repairCondition}
+                   onChange={(e) => setRepairCondition(e.target.value)}
+                   className="w-full rounded-md border border-neutral-300 px-3 py-2"
+                 >
+                   <option value="good">Good</option>
+                   <option value="bad">Bad</option>
+                   <option value="extremely bad">Extremely Bad</option>
+                   <option value="not repairable">Not Repairable</option>
+                 </select>
+               </div>
+               <div className="space-y-1">
+                 <label className="text-sm font-medium text-neutral-700">Delivery Date *</label>
+                 <input
+                   type="date"
+                   value={repairDeliveryDate}
+                   onChange={(e) => setRepairDeliveryDate(e.target.value)}
+                   className="w-full rounded-md border border-neutral-300 px-3 py-2"
+                   min={new Date().toISOString().slice(0, 10)}
                  />
                </div>
              </div>

@@ -241,11 +241,15 @@ export default function UnifiedScanner({ onScan, onStatusChange, onError }: Unif
           setCameraError('No cameras detected.')
           onError?.('No cameras detected.')
         } else {
-          const preferred =
-            videos.find((d) => d.label.toLowerCase().includes('back')) ??
-            videos.find((d) => d.label.toLowerCase().includes('environment')) ??
-            videos[videos.length - 1]
-          setActiveDeviceId((current) => current ?? preferred?.deviceId ?? videos[0].deviceId)
+          // Prioritize back camera for scanning
+        const backCamera = videos.find((d) => 
+          d.label.toLowerCase().includes('back') || 
+          d.label.toLowerCase().includes('rear') ||
+          d.label.toLowerCase().includes('environment')
+        )
+        // Prefer back camera, fallback to last device (usually back), then first
+        const preferred = backCamera ?? (videos.length > 1 ? videos[videos.length - 1] : videos[0])
+        setActiveDeviceId((current) => current ?? preferred?.deviceId ?? videos[0].deviceId)
           setCameraError(null)
           onError?.(null)
         }
