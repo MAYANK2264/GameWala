@@ -81,7 +81,26 @@ If your Google OAuth client ID has origin restrictions, you need to add redirect
 - You just need to add the complete URL to Google Cloud Console
 - Example: `https://amewala.firebaseapp.com/__/auth/handler` (not just `https://amewala.firebaseapp.com`)
 
-### Step 3: Android APK Configuration
+### Step 3: Enable Email/Password Authentication
+
+To allow employees to sign up and sign in with email/password:
+
+1. Go to **Firebase Console**: https://console.firebase.google.com
+2. Select your project: **amewala**
+3. Navigate to: **Authentication** → **Sign-in method** tab
+4. Find **Email/Password** in the list
+5. Click on **Email/Password**
+6. Enable the toggle for **Email/Password** (first toggle)
+7. Optionally enable **Email link (passwordless sign-in)** if you want passwordless authentication (not required)
+8. Click **Save**
+
+**Note:** After enabling Email/Password, employees can:
+- Sign up with email, password, and their name
+- Sign in with their email and password
+- Their account data (email, name, role) will be stored in Firestore under the `users` collection
+- New employees start with `role: 'pending'` until an owner approves them in Settings
+
+### Step 4: Android APK Configuration
 
 The Android manifest (`android/app/src/main/AndroidManifest.xml`) includes intent filters to handle OAuth redirects. These are already configured and allow Firebase Auth redirects to return to the app after Google sign-in:
 
@@ -92,7 +111,7 @@ The Android manifest (`android/app/src/main/AndroidManifest.xml`) includes inten
 
 **No action needed** - these are already set up in the code.
 
-### Debugging Authentication
+### Step 5: Debugging Authentication
 
 The app includes comprehensive debug logging. Check the browser/WebView console for:
 
