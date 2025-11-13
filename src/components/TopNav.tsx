@@ -6,7 +6,7 @@ const linkActive = 'bg-neutral-200 text-neutral-900'
 const linkInactive = 'text-neutral-700 hover:bg-neutral-100'
 
 export function TopNav() {
-  const { user, logout } = useAuth()
+  const { user, logout, role } = useAuth()
   const navItems = [
     { to: '/dashboard', label: 'Dashboard' },
     { to: '/inventory', label: 'Inventory' },
@@ -14,12 +14,12 @@ export function TopNav() {
     { to: '/scan', label: 'Scan' },
     { to: '/sales', label: 'Sales' },
     { to: '/reports', label: 'Reports' },
-    { to: '/settings', label: 'Settings' },
+    ...(role === 'owner' ? [{ to: '/settings', label: 'Settings' }] : []),
   ]
 
   return (
     <nav
-      className="sticky top-0 z-50 border-b border-neutral-200 bg-white"
+      className="fixed top-0 left-0 right-0 z-50 border-b border-neutral-200 bg-white"
       style={{ paddingTop: 'env(safe-area-inset-top)' }}
       role="navigation"
       aria-label="Main navigation"

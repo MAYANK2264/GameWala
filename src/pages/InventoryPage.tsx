@@ -9,6 +9,28 @@ import BarcodeLabel from '../components/BarcodeLabel'
 import AutocompleteInput from '../components/AutocompleteInput'
 import { addSuggestion } from '../utils/autocomplete'
 
+// Component for collapsible notes
+function ProductNotes({ notes }: { notes: string }) {
+  const [expanded, setExpanded] = useState(false)
+  if (!notes?.trim()) return null
+  return (
+    <div className="mt-2">
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="touch-target w-full text-left text-xs font-medium text-neutral-600 hover:text-neutral-900"
+      >
+        {expanded ? '▼ Hide Notes' : '▶ Show Notes'}
+      </button>
+      {expanded && (
+        <div className="mt-1 rounded-md border border-neutral-200 bg-neutral-50 p-2 text-xs text-neutral-700">
+          {notes}
+        </div>
+      )}
+    </div>
+  )
+}
+
 type FormState = {
   barcode: string
   type: string
@@ -351,18 +373,31 @@ export default function InventoryPage() {
                     <span className="text-neutral-700">{p.condition}</span>
                   </div>
                   <div>
-                    <span className="block text-neutral-400">Acquired</span>
-                    <span className="text-neutral-700">{p.acquiredDate}</span>
+                    <span className="block text-neutral-400">Selling Price</span>
+                    <span className="text-neutral-700">₹{p.acquisitionPrice || 0}</span>
                   </div>
                   <div>
-                    <span className="block text-neutral-400">From</span>
+                    <span className="block text-neutral-400">Acquired Date</span>
+                    <span className="text-neutral-700">{p.acquiredDate || '—'}</span>
+                  </div>
+                  <div>
+                    <span className="block text-neutral-400">Acquired From</span>
                     <span className="text-neutral-700">{p.acquiredFrom || '—'}</span>
                   </div>
+                  {(p as any).customerPhone && (
+                    <div>
+                      <span className="block text-neutral-400">Customer Phone</span>
+                      <span className="text-neutral-700">{(p as any).customerPhone}</span>
+                    </div>
+                  )}
                   <div>
                     <span className="block text-neutral-400">Status</span>
                     <span className="text-neutral-700">{(p as any).status ?? 'available'}</span>
                   </div>
                 </div>
+                {p.notes && (
+                  <ProductNotes notes={p.notes} />
+                )}
                 <div className="mt-3">
                   <BarcodeLabel code={p.barcode} brand={p.brand} productType={p.type} />
                 </div>
@@ -539,18 +574,31 @@ export default function InventoryPage() {
                     <span className="text-neutral-700">{p.condition}</span>
                   </div>
                   <div>
-                    <span className="block text-neutral-400">Acquired</span>
-                    <span className="text-neutral-700">{p.acquiredDate}</span>
+                    <span className="block text-neutral-400">Selling Price</span>
+                    <span className="text-neutral-700">₹{p.acquisitionPrice || 0}</span>
                   </div>
                   <div>
-                    <span className="block text-neutral-400">From</span>
+                    <span className="block text-neutral-400">Acquired Date</span>
+                    <span className="text-neutral-700">{p.acquiredDate || '—'}</span>
+                  </div>
+                  <div>
+                    <span className="block text-neutral-400">Acquired From</span>
                     <span className="text-neutral-700">{p.acquiredFrom || '—'}</span>
                   </div>
+                  {(p as any).customerPhone && (
+                    <div>
+                      <span className="block text-neutral-400">Customer Phone</span>
+                      <span className="text-neutral-700">{(p as any).customerPhone}</span>
+                    </div>
+                  )}
                   <div>
                     <span className="block text-neutral-400">Status</span>
                     <span className="text-neutral-700">{(p as any).status ?? 'in_repair'}</span>
                   </div>
                 </div>
+                {p.notes && (
+                  <ProductNotes notes={p.notes} />
+                )}
                 <div className="mt-3">
                   <BarcodeLabel code={p.barcode} brand={p.brand} productType={p.type} />
                 </div>
@@ -766,6 +814,7 @@ export default function InventoryPage() {
                   maxLength={10}
                   pattern="[0-9]{10}"
                   inputMode="numeric"
+                  autoComplete="tel"
                 />
               </div>
               <div className="sm:col-span-2 space-y-1">

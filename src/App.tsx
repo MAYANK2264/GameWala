@@ -8,7 +8,7 @@ function App() {
   return (
     <div className="min-h-screen flex flex-col">
       <TopNav />
-      <main className="flex-1 container-px py-6">
+      <main className="flex-1 container-px py-6" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 4rem)' }}>
         <div className="mx-auto max-w-7xl">
           <div className="space-y-4">
             <Routes>

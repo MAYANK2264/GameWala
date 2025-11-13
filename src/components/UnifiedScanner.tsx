@@ -197,24 +197,41 @@ export default function UnifiedScanner({ onScan, onStatusChange, onError }: Unif
     if (!supportsTorch || !html5Ref.current) return
     try {
       const newState = !torchOn
-      const api = (html5Ref.current as unknown as { applyVideoConstraints?: (constraints: MediaTrackConstraints) => Promise<void> })
-        .applyVideoConstraints
-      if (!api) {
-        throw new Error('Torch constraints API unavailable')
+      // Try to get video track from the scanner
+      const scannerElement = document.getElementById(containerId)
+      if (!scannerElement) {
+        throw new Error('Scanner element not found')
       }
-      const constraints = {
-        advanced: [{ torch: newState }] as unknown as MediaTrackConstraintSet[],
-      } as unknown as MediaTrackConstraints
-      await api(constraints)
+      
+      // Get video element from html5-qrcode
+      const videoElement = scannerElement.querySelector('video') as HTMLVideoElement | null
+      if (!videoElement || !videoElement.srcObject) {
+        throw new Error('Video stream not available')
+      }
+      
+      const stream = videoElement.srcObject as MediaStream
+      const videoTrack = stream.getVideoTracks()[0]
+      if (!videoTrack) {
+        throw new Error('Video track not found')
+      }
+      
+      // Apply torch constraint directly to the track
+      await videoTrack.applyConstraints({
+        advanced: [{ torch: newState } as unknown as MediaTrackConstraintSet],
+      } as MediaTrackConstraints)
+      
       setTorchOn(newState)
     } catch (err) {
       console.warn('Torch toggle failed', err)
-      setSupportsTorch(false)
-      setTorchOn(false)
-      setCameraError('Flashlight control is not supported on this camera.')
-      onError?.('Flashlight control is not supported on this camera.')
+      // Don't disable torch support on first failure, might be a timing issue
+      if (err instanceof Error && err.message.includes('not found')) {
+        setSupportsTorch(false)
+        setTorchOn(false)
+        setCameraError('Flashlight control is not supported on this camera.')
+        onError?.('Flashlight control is not supported on this camera.')
+      }
     }
-  }, [supportsTorch, torchOn, onError])
+  }, [supportsTorch, torchOn, onError, containerId])
 
   useEffect(() => {
     if (!navigator.mediaDevices?.enumerateDevices) {

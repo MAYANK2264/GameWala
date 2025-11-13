@@ -5,16 +5,45 @@ import { storage } from '../firebaseConfig'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import type { Product } from '../types/product'
 import { useNavigate } from 'react-router-dom'
-import UnifiedScanner from '../components/UnifiedScanner'
+import ScannerModal from '../components/ScannerModal'
+
+// Component for collapsible notes
+function ProductNotes({ notes }: { notes: string }) {
+  const [expanded, setExpanded] = useState(false)
+  if (!notes?.trim()) return null
+  return (
+    <div className="mt-2">
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="touch-target w-full text-left text-xs font-medium text-neutral-600 hover:text-neutral-900"
+      >
+        {expanded ? '▼ Hide Notes' : '▶ Show Notes'}
+      </button>
+      {expanded && (
+        <div className="mt-1 rounded-md border border-neutral-200 bg-neutral-50 p-2 text-xs text-neutral-700">
+          {notes}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function ScanPage() {
   const [barcode, setBarcode] = useState('')
   const [product, setProduct] = useState<Product | null>(null)
   const [scannerMessage, setScannerMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [showScannerModal, setShowScannerModal] = useState(false)
   const [showRepairModal, setShowRepairModal] = useState(false)
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
+  const [repairCondition, setRepairCondition] = useState('good')
+  const [repairDeliveryDate, setRepairDeliveryDate] = useState(() => {
+    const date = new Date()
+    date.setDate(date.getDate() + 7)
+    return date.toISOString().slice(0, 10)
+  })
   const [note, setNote] = useState('')
   const [recording, setRecording] = useState<MediaRecorder | null>(null)
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
@@ -25,6 +54,7 @@ export default function ScanPage() {
     setBarcode(code)
     setScannerMessage(`Scanned: ${code}`)
     setError(null)
+    setShowScannerModal(false) // Close scanner modal
     const fetched = await getProductByBarcode(code)
     setProduct(fetched)
     if (!fetched) {
@@ -94,7 +124,9 @@ export default function ScanPage() {
       customerName: customerName.trim(),
       customerPhone: customerPhone.trim(),
       receivedDate: new Date().toISOString().slice(0, 10),
-      expectedDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+      expectedDate: repairDeliveryDate,
+      deliveryDate: repairDeliveryDate,
+      condition: repairCondition,
       faultDescription: note || 'N/A',
       status: 'Received',
       estimate: Number(product.acquisitionPrice) || 0,
@@ -115,6 +147,10 @@ export default function ScanPage() {
     setShowRepairModal(false)
     setCustomerName('')
     setCustomerPhone('')
+    setRepairCondition('good')
+    const date = new Date()
+    date.setDate(date.getDate() + 7)
+    setRepairDeliveryDate(date.toISOString().slice(0, 10))
     setNote('')
     setAudioBlob(null)
   }
@@ -130,11 +166,13 @@ export default function ScanPage() {
             </p>
           </div>
 
-          <UnifiedScanner
-            onScan={handleScannedCode}
-            onStatusChange={(status) => setScannerMessage(status === 'scanning' ? 'Camera scanning…' : null)}
-            onError={setError}
-          />
+          <button
+            type="button"
+            onClick={() => setShowScannerModal(true)}
+            className="touch-target w-full inline-flex items-center justify-center rounded-md bg-neutral-900 px-4 py-3 font-medium text-white transition hover:opacity-90"
+          >
+            Open Camera Scanner
+          </button>
 
           <div className="space-y-2">
             <label htmlFor="manual-barcode" className="text-sm font-medium text-neutral-700">
@@ -209,14 +247,33 @@ export default function ScanPage() {
                   <div>{product.condition || '—'}</div>
                 </div>
                 <div>
-                  <span className="text-neutral-500">Price</span>
+                  <span className="text-neutral-500">Selling Price</span>
                   <div>₹{product.acquisitionPrice ?? '—'}</div>
                 </div>
+                <div>
+                  <span className="text-neutral-500">Acquired Date</span>
+                  <div>{product.acquiredDate || '—'}</div>
+                </div>
+                {product.acquiredFrom && (
+                  <div>
+                    <span className="text-neutral-500">Acquired From</span>
+                    <div>{product.acquiredFrom}</div>
+                  </div>
+                )}
+                {(product as any).customerPhone && (
+                  <div>
+                    <span className="text-neutral-500">Customer Phone</span>
+                    <div>{(product as any).customerPhone}</div>
+                  </div>
+                )}
                 <div>
                   <span className="text-neutral-500">Status</span>
                   <div>{(product as any).status ?? 'available'}</div>
                 </div>
               </div>
+              {product.notes && (
+                <ProductNotes notes={product.notes} />
+              )}
 
               <div className="flex flex-wrap gap-2">
                 <button
@@ -280,12 +337,42 @@ export default function ScanPage() {
                   id="repair-customer-phone"
                   type="tel"
                   value={customerPhone}
-                  onChange={(event) => setCustomerPhone(event.target.value)}
+                  onChange={(event) => setCustomerPhone(event.target.value.replace(/\D/g, '').slice(0, 10))}
                   className="w-full rounded-md border border-neutral-300 px-3 py-2"
                   placeholder="10 digit phone"
                   maxLength={10}
                   pattern="[0-9]{10}"
                   inputMode="numeric"
+                  autoComplete="tel"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-neutral-700" htmlFor="repair-condition">
+                  Product Condition *
+                </label>
+                <select
+                  id="repair-condition"
+                  value={repairCondition}
+                  onChange={(e) => setRepairCondition(e.target.value)}
+                  className="w-full rounded-md border border-neutral-300 px-3 py-2"
+                >
+                  <option value="good">Good</option>
+                  <option value="bad">Bad</option>
+                  <option value="very bad">Very Bad</option>
+                  <option value="not repairable">Not Repairable</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-neutral-700" htmlFor="repair-delivery-date">
+                  Delivery Date *
+                </label>
+                <input
+                  id="repair-delivery-date"
+                  type="date"
+                  value={repairDeliveryDate}
+                  onChange={(e) => setRepairDeliveryDate(e.target.value)}
+                  className="w-full rounded-md border border-neutral-300 px-3 py-2"
+                  min={new Date().toISOString().slice(0, 10)}
                 />
               </div>
               <div className="space-y-1">
@@ -343,6 +430,12 @@ export default function ScanPage() {
           </div>
         </div>
       )}
+
+      <ScannerModal
+        isOpen={showScannerModal}
+        onClose={() => setShowScannerModal(false)}
+        onScan={handleScannedCode}
+      />
     </div>
   )
 }
