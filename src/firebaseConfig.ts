@@ -22,25 +22,43 @@ const firebaseConfig = {
 export const app = initializeApp(firebaseConfig)
 
 // ✅ Initialize Firebase Auth
-// For Capacitor/WebView, use IndexedDB persistence to handle redirects properly
-// For regular browsers, use default persistence
+// Use getAuth by default - it handles persistence automatically
+// Only use initializeAuth if getAuth fails (rare edge case)
 let initializedAuth
-if (Capacitor.isNativePlatform()) {
-  // For native apps (Android/iOS), use IndexedDB persistence
-  // This ensures session state persists across redirects
-  try {
-    initializedAuth = initializeAuth(app, { persistence: indexedDBLocalPersistence })
-    console.log('[Firebase] Auth initialized with IndexedDB persistence for native platform')
-  } catch (_) {
-    // If already initialized (hot reload), get existing instance
-    initializedAuth = getAuth(app)
-    console.log('[Firebase] Using existing auth instance')
-  }
-} else {
-  // For web browsers, use default persistence
+try {
+  // Try to get existing auth instance first
   initializedAuth = getAuth(app)
-  console.log('[Firebase] Auth initialized with default persistence for web')
+  console.log('[Firebase] Auth initialized with getAuth()')
+} catch (error) {
+  // Fallback: if getAuth fails (shouldn't happen), try initializeAuth
+  console.warn('[Firebase] getAuth failed, trying initializeAuth:', error)
+  try {
+    if (Capacitor.isNativePlatform()) {
+      initializedAuth = initializeAuth(app, { persistence: indexedDBLocalPersistence })
+      console.log('[Firebase] Auth initialized with IndexedDB persistence for native platform')
+    } else {
+      initializedAuth = initializeAuth(app)
+      console.log('[Firebase] Auth initialized with default persistence')
+    }
+  } catch (initError) {
+    console.error('[Firebase] ❌ Failed to initialize auth:', initError)
+    throw new Error('Firebase Auth initialization failed')
+  }
 }
+
+// Validate auth instance
+if (!initializedAuth) {
+  throw new Error('Firebase Auth instance is null')
+}
+
+// Verify auth config
+if (!initializedAuth.config || !initializedAuth.config.authDomain) {
+  console.error('[Firebase] ❌ Auth config is invalid:', initializedAuth.config)
+  throw new Error('Firebase Auth configuration is invalid')
+}
+
+console.log('[Firebase] ✅ Auth initialized successfully')
+console.log('[Firebase] Auth domain:', initializedAuth.config.authDomain)
 
 // ✅ Export the auth instance
 export const auth = initializedAuth

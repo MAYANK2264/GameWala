@@ -55,8 +55,9 @@ if (Capacitor.isNativePlatform()) {
   })
 }
 
-// Only check redirect result if auth is available
-if (auth) {
+// Only check redirect result if auth is available and properly initialized
+if (auth && auth.config && auth.config.authDomain) {
+  console.log('[App] Checking for pending redirect result...')
   getRedirectResult(auth)
     .then((result) => {
       if (result?.user) {
@@ -64,13 +65,17 @@ if (auth) {
         console.log('[App] User:', result.user.uid, result.user.email)
         // The auth state change listener in useAuth will handle the rest
       } else {
-        console.log('[App] No pending redirect result')
+        console.log('[App] No pending redirect result (this is normal on first load)')
       }
     })
     .catch((error) => {
-      // Ignore common "no redirect" errors - these are normal
-      if (error.code === 'auth/operation-not-allowed' || error.code === 'auth/argument-error') {
+      // Ignore common "no redirect" errors - these are normal on first load
+      if (error.code === 'auth/operation-not-allowed') {
         console.log('[App] No redirect result to process (this is normal on first load)')
+      } else if (error.code === 'auth/argument-error') {
+        // This might indicate a real problem - log it but don't crash
+        console.warn('[App] ⚠️ Auth argument error when checking redirect:', error.message)
+        console.warn('[App] This might indicate an auth configuration issue')
       } else if (error.code) {
         console.error('[App] ❌ Error processing redirect result:', error.code, error.message)
       } else {
@@ -78,7 +83,9 @@ if (auth) {
       }
     })
 } else {
-  console.error('[App] ❌ Auth instance not available during initialization')
+  console.error('[App] ❌ Auth instance not available or invalid during initialization')
+  console.error('[App] Auth:', auth)
+  console.error('[App] Auth config:', auth?.config)
 }
 
 createRoot(document.getElementById('root')!).render(

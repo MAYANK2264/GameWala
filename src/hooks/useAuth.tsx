@@ -5,9 +5,6 @@ import {
   signInWithPopup,
   signInWithRedirect,
   signOut,
-  getRedirectResult,
-  setPersistence,
-  browserLocalPersistence,
   type User as FirebaseUser,
 } from 'firebase/auth'
 import { auth, db } from '../firebaseConfig'
@@ -47,41 +44,21 @@ export function useAuth() {
       console.warn('[Auth] Failed to set language code:', e)
     }
 
-    // For WebView/Capacitor, ensure IndexedDB persistence
-    // For regular browsers, use default persistence (don't override)
-    if (isWebView()) {
-      // In WebView, we might need IndexedDB persistence
-      // But only set it if not already set
-      setPersistence(auth, browserLocalPersistence)
-        .then(() => console.log('[Auth] Persistence set to local'))
-        .catch((e) => {
-          console.warn('[Auth] Could not set persistence (may already be set):', e.message)
-        })
+    // Validate auth instance before use
+    if (!auth || !auth.config || !auth.config.authDomain) {
+      console.error('[Auth] ❌ Invalid auth instance:', auth)
+      setLoginError('Firebase Authentication is not properly configured. Please refresh the page.')
+      setLoading(false)
+      return
     }
 
-    // Resolve pending redirect results (errors included) to avoid getting stuck
-    console.log('[Auth] Checking for pending redirect result...')
-    getRedirectResult(auth)
-      .then((res) => {
-        if (res?.user) {
-          console.log('[Auth] ✅ Redirect result received for user:', res.user.uid, res.user.email)
-          setLoginError(null)
-        } else {
-          console.log('[Auth] No pending redirect result (this is normal)')
-        }
-      })
-      .catch((err) => {
-        // Ignore common "no redirect" errors
-        if (err.code === 'auth/operation-not-allowed' || err.code === 'auth/argument-error') {
-          console.log('[Auth] No redirect result to process (normal on first load)')
-        } else {
-          console.error('[Auth] ❌ Redirect sign-in failed:', err.code, err.message)
-          // Only show user-facing error for real issues
-          if (err.code && !err.code.includes('operation-not-allowed') && !err.code.includes('argument-error')) {
-            setLoginError('We could not complete Google sign-in. Please try again.')
-          }
-        }
-      })
+    console.log('[Auth] ✅ Auth instance validated')
+    console.log('[Auth] Auth domain:', auth.config.authDomain)
+    console.log('[Auth] Auth API key:', auth.config.apiKey ? 'Set' : 'Missing')
+
+    // Note: getRedirectResult is called in main.tsx on app startup
+    // We don't call it here to avoid conflicts
+    console.log('[Auth] Skipping getRedirectResult here (handled in main.tsx)')
 
     const unsub = onAuthStateChanged(auth, async (fbUser) => {
       console.log('[Auth] 🔄 Auth state changed:', fbUser ? `User: ${fbUser.uid} (${fbUser.email})` : 'No user')
@@ -202,15 +179,18 @@ export function useAuth() {
       console.log('[Auth] Current href:', window.location.href)
       console.log('[Auth] Auth domain:', auth.config?.authDomain)
       
+      // Validate auth before use
+      if (!auth || !auth.config || !auth.config.authDomain) {
+        throw new Error('Auth instance is not properly initialized')
+      }
+      
       // For Capacitor/WebView, ensure we're using the app's origin
       // Firebase will redirect back to the current origin
       try {
-        // Clear any previous redirect state
-        await getRedirectResult(auth).catch(() => {
-          // Ignore errors from checking redirect result
-        })
-        
         console.log('[Auth] Starting redirect flow...')
+        console.log('[Auth] Provider:', provider.providerId)
+        
+        // Call signInWithRedirect - this will navigate away
         await signInWithRedirect(auth, provider)
         console.log('[Auth] ✅ Redirect initiated successfully, page will navigate')
         // Page will navigate, so we don't reset authBusy here
@@ -226,6 +206,7 @@ export function useAuth() {
           return
         }
         
+        // Re-throw to be handled by caller
         throw redirectErr
       }
     }
