@@ -4,6 +4,8 @@ import {
   onAuthStateChanged,
   signInWithPopup,
   signInWithRedirect,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   signOut,
   type User as FirebaseUser,
 } from 'firebase/auth'
@@ -293,6 +295,131 @@ export function useAuth() {
     }
   }, [authBusy])
 
+  const signUpWithEmail = useCallback(async (email: string, password: string, displayName: string) => {
+    if (authBusy) {
+      console.log('[Auth] Sign-up already in progress, ignoring')
+      return
+    }
+
+    if (!auth) {
+      console.error('[Auth] ❌ Cannot sign up: Auth instance is not available')
+      setLoginError('Authentication is not initialized. Please refresh the page.')
+      return
+    }
+
+    setAuthBusy(true)
+    setLoginError(null)
+
+    try {
+      console.log('[Auth] 📝 Creating new user account...')
+      const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password)
+      const fbUser = userCredential.user
+      console.log('[Auth] ✅ User account created:', fbUser.uid)
+
+      // Update display name if provided
+      if (displayName.trim()) {
+        // Note: updateProfile requires additional setup, we'll store it in Firestore instead
+        console.log('[Auth] Display name will be stored in Firestore')
+      }
+
+      // Create user document in Firestore
+      const userRef = doc(db, 'users', fbUser.uid)
+      await setDoc(userRef, {
+        uid: fbUser.uid,
+        email: fbUser.email ?? email.trim(),
+        displayName: displayName.trim() || null,
+        role: 'pending' as UserRole,
+        createdAt: serverTimestamp(),
+        active: true,
+        authProvider: 'email',
+      })
+      console.log('[Auth] ✅ User document created in Firestore')
+
+      setAuthBusy(false)
+      return { success: true }
+    } catch (err) {
+      const error = err as AuthError
+      console.error('[Auth] ❌ Sign-up failed:', error.code, error.message)
+
+      let errorMessage = 'Sign-up failed. Please try again.'
+      switch (error.code) {
+        case 'auth/email-already-in-use':
+          errorMessage = 'This email is already registered. Please sign in instead.'
+          break
+        case 'auth/invalid-email':
+          errorMessage = 'Please enter a valid email address.'
+          break
+        case 'auth/weak-password':
+          errorMessage = 'Password is too weak. Please use at least 6 characters.'
+          break
+        case 'auth/network-request-failed':
+          errorMessage = 'Network error. Check your internet connection and try again.'
+          break
+        default:
+          errorMessage = `Sign-up failed: ${error.message || error.code}. Please try again.`
+      }
+
+      setLoginError(errorMessage)
+      setAuthBusy(false)
+      return { success: false, error: errorMessage }
+    }
+  }, [authBusy])
+
+  const signInWithEmail = useCallback(async (email: string, password: string) => {
+    if (authBusy) {
+      console.log('[Auth] Sign-in already in progress, ignoring')
+      return
+    }
+
+    if (!auth) {
+      console.error('[Auth] ❌ Cannot sign in: Auth instance is not available')
+      setLoginError('Authentication is not initialized. Please refresh the page.')
+      return
+    }
+
+    setAuthBusy(true)
+    setLoginError(null)
+
+    try {
+      console.log('[Auth] 🔐 Signing in with email...')
+      await signInWithEmailAndPassword(auth, email.trim(), password)
+      console.log('[Auth] ✅ Email sign-in successful')
+      setAuthBusy(false)
+      return { success: true }
+    } catch (err) {
+      const error = err as AuthError
+      console.error('[Auth] ❌ Email sign-in failed:', error.code, error.message)
+
+      let errorMessage = 'Sign-in failed. Please try again.'
+      switch (error.code) {
+        case 'auth/user-not-found':
+          errorMessage = 'No account found with this email. Please sign up first.'
+          break
+        case 'auth/wrong-password':
+          errorMessage = 'Incorrect password. Please try again.'
+          break
+        case 'auth/invalid-email':
+          errorMessage = 'Please enter a valid email address.'
+          break
+        case 'auth/invalid-credential':
+          errorMessage = 'Invalid email or password. Please try again.'
+          break
+        case 'auth/too-many-requests':
+          errorMessage = 'Too many failed attempts. Please try again later.'
+          break
+        case 'auth/network-request-failed':
+          errorMessage = 'Network error. Check your internet connection and try again.'
+          break
+        default:
+          errorMessage = `Sign-in failed: ${error.message || error.code}. Please try again.`
+      }
+
+      setLoginError(errorMessage)
+      setAuthBusy(false)
+      return { success: false, error: errorMessage }
+    }
+  }, [authBusy])
+
   const logout = useCallback(async () => {
     await signOut(auth)
   }, [])
@@ -306,9 +433,11 @@ export function useAuth() {
       loginError,
       setLoginError,
       loginWithGoogle,
+      signUpWithEmail,
+      signInWithEmail,
       logout,
     }),
-    [user, role, loading, authBusy, loginError, loginWithGoogle, logout]
+    [user, role, loading, authBusy, loginError, loginWithGoogle, signUpWithEmail, signInWithEmail, logout]
   )
 }
 
