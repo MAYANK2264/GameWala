@@ -1,6 +1,7 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, useEffect } from 'react'
 import { Navigate } from 'react-router-dom'
 import useAuth from '../hooks/useAuth'
+import { requestCameraPermissionOnce } from '../utils/cameraPermission'
 
 export function Login() {
   const {
@@ -21,6 +22,16 @@ export function Login() {
   const [displayName, setDisplayName] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+
+  // Request camera permission on first login
+  useEffect(() => {
+    if (!loading && user) {
+      // Request camera permission once after successful login
+      requestCameraPermissionOnce().catch((error) => {
+        console.error('Camera permission request failed:', error)
+      })
+    }
+  }, [loading, user])
 
   if (!loading && user) return <Navigate to="/dashboard" replace />
 

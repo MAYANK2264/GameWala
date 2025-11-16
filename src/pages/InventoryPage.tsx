@@ -7,6 +7,7 @@ import { storage } from '../firebaseConfig'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import BarcodeLabel from '../components/BarcodeLabel'
 import AutocompleteInput from '../components/AutocompleteInput'
+import PhotoUpload from '../components/PhotoUpload'
 import { addSuggestion } from '../utils/autocomplete'
 
 // Component for collapsible notes
@@ -37,10 +38,13 @@ type FormState = {
   brand: string
   condition: string
   sellingPrice: string
+  buyingPrice: string
+  quantity: string
   acquiredDate: string
   acquiredFrom: string
   customerPhone: string; // NEW
   notes: string
+  photoUrls: string[]
 }
 
 const defaultForm = (view: 'shop' | 'repair' = 'shop'): FormState => ({
@@ -49,10 +53,13 @@ const defaultForm = (view: 'shop' | 'repair' = 'shop'): FormState => ({
   brand: '',
   condition: view === 'repair' ? 'good' : 'new',
   sellingPrice: '',
+  buyingPrice: '',
+  quantity: '1',
   acquiredDate: new Date().toISOString().slice(0, 10),
   acquiredFrom: '',
   customerPhone: '',
   notes: '',
+  photoUrls: [],
 })
 
 export default function InventoryPage() {
@@ -116,10 +123,13 @@ export default function InventoryPage() {
       brand: p.brand,
       condition: p.condition,
       sellingPrice: String(p.acquisitionPrice ?? ''),
+      buyingPrice: String(p.buyingPrice ?? ''),
+      quantity: String(p.quantity ?? 1),
       acquiredDate: p.acquiredDate ?? new Date().toISOString().slice(0, 10),
       acquiredFrom: p.acquiredFrom ?? '',
       customerPhone: (p as any).customerPhone ?? '', // NEW
       notes: p.notes ?? '',
+      photoUrls: p.photoUrls ?? [],
     })
     setShowModal(true)
   }
@@ -142,17 +152,46 @@ export default function InventoryPage() {
       brand: form.brand,
       condition: form.condition,
       acquisitionPrice: Number(form.sellingPrice) || 0,
+      buyingPrice: form.buyingPrice ? Number(form.buyingPrice) : undefined,
+      quantity: Number(form.quantity) || 1,
       acquiredDate: form.acquiredDate,
       acquiredFrom: form.condition === 'new' ? '' : form.acquiredFrom, // Hide for new items
       customerPhone: form.customerPhone,
       notes: form.notes || undefined,
+      photoUrls: form.photoUrls.length > 0 ? form.photoUrls : undefined,
       status: view === 'repair' ? 'in_repair' : 'available',
     }
+    let productId: string
     if (editingId) {
       const { status, ...rest } = payload
       await updateProduct(editingId, rest)
+      productId = editingId
     } else {
-      await addProduct(payload)
+      productId = await addProduct(payload)
+      
+      // Auto-create repair entry if adding in repair view
+      if (view === 'repair') {
+        try {
+          const date = new Date()
+          date.setDate(date.getDate() + 7)
+          await createRepair({
+            productId,
+            customerName: form.customerPhone ? `Customer (${form.customerPhone})` : 'Customer',
+            customerPhone: form.customerPhone || '',
+            receivedDate: new Date().toISOString().slice(0, 10),
+            expectedDate: date.toISOString().slice(0, 10),
+            deliveryDate: date.toISOString().slice(0, 10),
+            condition: form.condition,
+            faultDescription: form.notes || 'N/A',
+            status: 'In Progress',
+            estimate: Number(form.sellingPrice) || 0,
+            assignedTo: '',
+            notes: form.notes || undefined,
+          } as any)
+        } catch (error) {
+          console.error('Failed to auto-create repair:', error)
+        }
+      }
     }
     setShowModal(false)
     setForm(defaultForm())
@@ -358,12 +397,24 @@ export default function InventoryPage() {
           ) : (
             shopProducts.map((p) => (
               <div key={p.id} className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-semibold text-neutral-900">{p.brand || 'Unnamed product'}</div>
-                    <div className="text-xs uppercase tracking-wide text-neutral-500">{p.type || '—'}</div>
+                {p.photoUrls && p.photoUrls.length > 0 && (
+                  <div className="mb-3 flex gap-2 overflow-x-auto">
+                    {p.photoUrls.map((url, idx) => (
+                      <img
+                        key={idx}
+                        src={url}
+                        alt={`${p.brand} ${idx + 1}`}
+                        className="h-24 w-24 flex-shrink-0 rounded-md border border-neutral-200 object-cover"
+                      />
+                    ))}
                   </div>
-                  <div className="text-right text-sm text-neutral-600">
+                )}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-neutral-900 truncate">{p.brand || 'Unnamed product'}</div>
+                    <div className="text-xs uppercase tracking-wide text-neutral-500 truncate">{p.type || '—'}</div>
+                  </div>
+                  <div className="text-right text-sm text-neutral-600 flex-shrink-0">
                     <div className="font-mono text-base">{p.barcode}</div>
                     <div>₹{p.acquisitionPrice}</div>
                   </div>
@@ -377,6 +428,26 @@ export default function InventoryPage() {
                     <span className="block text-neutral-400">Selling Price</span>
                     <span className="text-neutral-700">₹{p.acquisitionPrice || 0}</span>
                   </div>
+                  {p.buyingPrice && (
+                    <div>
+                      <span className="block text-neutral-400">Buying Price</span>
+                      <span className="text-neutral-700">₹{p.buyingPrice}</span>
+                    </div>
+                  )}
+                  {p.buyingPrice && p.acquisitionPrice && (
+                    <div>
+                      <span className="block text-neutral-400">Profit</span>
+                      <span className={`font-semibold ${p.acquisitionPrice - p.buyingPrice >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        ₹{p.acquisitionPrice - p.buyingPrice}
+                      </span>
+                    </div>
+                  )}
+                  {p.quantity && p.quantity > 1 && (
+                    <div>
+                      <span className="block text-neutral-400">Quantity</span>
+                      <span className="text-neutral-700">{p.quantity}</span>
+                    </div>
+                  )}
                   <div>
                     <span className="block text-neutral-400">Acquired Date</span>
                     <span className="text-neutral-700">{p.acquiredDate || '—'}</span>
@@ -406,28 +477,28 @@ export default function InventoryPage() {
                   <button
                     type="button"
                     onClick={() => openEdit(p)}
-                    className="touch-target inline-flex flex-1 items-center justify-center rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-700 transition hover:bg-neutral-100"
+                    className="touch-target inline-flex flex-1 min-w-[80px] items-center justify-center rounded-md border border-neutral-200 bg-white px-3 py-2 text-xs sm:text-sm font-medium text-neutral-700 transition hover:bg-neutral-100"
                   >
                     Edit
                   </button>
                   <button
                     type="button"
                     onClick={() => startRepair(p)}
-                    className="touch-target inline-flex flex-1 items-center justify-center rounded-md bg-amber-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-amber-700"
+                    className="touch-target inline-flex flex-1 min-w-[80px] items-center justify-center rounded-md bg-amber-600 px-3 py-2 text-xs sm:text-sm font-medium text-white transition hover:bg-amber-700"
                   >
                     Repair
                   </button>
                   <button
                     type="button"
                     onClick={() => openSell(p)}
-                    className="touch-target inline-flex flex-1 items-center justify-center rounded-md bg-green-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-green-700"
+                    className="touch-target inline-flex flex-1 min-w-[80px] items-center justify-center rounded-md bg-green-600 px-3 py-2 text-xs sm:text-sm font-medium text-white transition hover:bg-green-700"
                   >
                     Sell
                   </button>
                   <button
                     type="button"
                     onClick={() => handleDelete(p.id)}
-                    className="touch-target inline-flex flex-1 items-center justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-red-700"
+                    className="touch-target inline-flex flex-1 min-w-[80px] items-center justify-center rounded-md bg-red-600 px-3 py-2 text-xs sm:text-sm font-medium text-white transition hover:bg-red-700"
                   >
                     Delete
                   </button>
@@ -559,12 +630,24 @@ export default function InventoryPage() {
           ) : (
             repairProducts.map((p) => (
               <div key={p.id} className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-semibold text-neutral-900">{p.brand || 'Unnamed product'}</div>
-                    <div className="text-xs uppercase tracking-wide text-neutral-500">{p.type || '—'}</div>
+                {p.photoUrls && p.photoUrls.length > 0 && (
+                  <div className="mb-3 flex gap-2 overflow-x-auto">
+                    {p.photoUrls.map((url, idx) => (
+                      <img
+                        key={idx}
+                        src={url}
+                        alt={`${p.brand} ${idx + 1}`}
+                        className="h-24 w-24 flex-shrink-0 rounded-md border border-neutral-200 object-cover"
+                      />
+                    ))}
                   </div>
-                  <div className="text-right text-sm text-neutral-600">
+                )}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-neutral-900 truncate">{p.brand || 'Unnamed product'}</div>
+                    <div className="text-xs uppercase tracking-wide text-neutral-500 truncate">{p.type || '—'}</div>
+                  </div>
+                  <div className="text-right text-sm text-neutral-600 flex-shrink-0">
                     <div className="font-mono text-base">{p.barcode}</div>
                     <div>₹{p.acquisitionPrice}</div>
                   </div>
@@ -578,6 +661,26 @@ export default function InventoryPage() {
                     <span className="block text-neutral-400">Selling Price</span>
                     <span className="text-neutral-700">₹{p.acquisitionPrice || 0}</span>
                   </div>
+                  {p.buyingPrice && (
+                    <div>
+                      <span className="block text-neutral-400">Buying Price</span>
+                      <span className="text-neutral-700">₹{p.buyingPrice}</span>
+                    </div>
+                  )}
+                  {p.buyingPrice && p.acquisitionPrice && (
+                    <div>
+                      <span className="block text-neutral-400">Profit</span>
+                      <span className={`font-semibold ${p.acquisitionPrice - p.buyingPrice >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        ₹{p.acquisitionPrice - p.buyingPrice}
+                      </span>
+                    </div>
+                  )}
+                  {p.quantity && p.quantity > 1 && (
+                    <div>
+                      <span className="block text-neutral-400">Quantity</span>
+                      <span className="text-neutral-700">{p.quantity}</span>
+                    </div>
+                  )}
                   <div>
                     <span className="block text-neutral-400">Acquired Date</span>
                     <span className="text-neutral-700">{p.acquiredDate || '—'}</span>
@@ -720,8 +823,8 @@ export default function InventoryPage() {
       )}
 
        {showModal && (
-        <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="modal-content w-full max-w-2xl rounded-lg bg-white shadow-lg">
+        <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-2 sm:p-4 overflow-y-auto">
+          <div className="modal-content w-full max-w-2xl rounded-lg bg-white shadow-lg my-auto max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-neutral-200 p-4">
               <div className="text-lg font-semibold">{editingId ? 'Edit Product' : 'Add Product'}</div>
               <button
@@ -732,7 +835,7 @@ export default function InventoryPage() {
                 Close
               </button>
             </div>
-            <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:gap-4 p-3 sm:p-4 sm:grid-cols-2">
               <div className="space-y-1">
                 <label className="text-sm font-medium text-neutral-700">Barcode</label>
                 <input
@@ -794,6 +897,17 @@ export default function InventoryPage() {
                 />
               </div>
               <div className="space-y-1">
+                <label className="text-sm font-medium text-neutral-700">Buying Price</label>
+                <input
+                  type="number"
+                  value={form.buyingPrice}
+                  onChange={(e) => setForm({ ...form, buyingPrice: e.target.value })}
+                  className="w-full rounded-md border border-neutral-300 px-3 py-2"
+                  inputMode="numeric"
+                  placeholder="Cost price"
+                />
+              </div>
+              <div className="space-y-1">
                 <label className="text-sm font-medium text-neutral-700">Selling Price</label>
                 <input
                   type="number"
@@ -801,8 +915,23 @@ export default function InventoryPage() {
                   onChange={(e) => setForm({ ...form, sellingPrice: e.target.value })}
                   className="w-full rounded-md border border-neutral-300 px-3 py-2"
                   inputMode="numeric"
+                  placeholder="Sale price"
                 />
               </div>
+              {form.condition === 'new' && (
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-neutral-700">Quantity</label>
+                  <input
+                    type="number"
+                    value={form.quantity}
+                    onChange={(e) => setForm({ ...form, quantity: e.target.value.replace(/\D/g, '') || '1' })}
+                    className="w-full rounded-md border border-neutral-300 px-3 py-2"
+                    inputMode="numeric"
+                    min="1"
+                    placeholder="Number of items"
+                  />
+                </div>
+              )}
               {form.condition !== 'new' && (
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-neutral-700">Acquired From</label>
@@ -837,6 +966,13 @@ export default function InventoryPage() {
                   onChange={(value) => setForm({ ...form, notes: value })}
                   placeholder="Enter notes"
                   className="w-full rounded-md border border-neutral-300 px-3 py-2"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <PhotoUpload
+                  photos={form.photoUrls}
+                  onPhotosChange={(urls) => setForm({ ...form, photoUrls: urls })}
+                  maxPhotos={5}
                 />
               </div>
             </div>

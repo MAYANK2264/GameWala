@@ -230,22 +230,34 @@ export default function ScanPage() {
             </div>
           ) : (
             <div className="space-y-3">
+              {product.photoUrls && product.photoUrls.length > 0 && (
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                  {product.photoUrls.map((url, idx) => (
+                    <img
+                      key={idx}
+                      src={url}
+                      alt={`${product.brand} ${idx + 1}`}
+                      className="h-32 w-32 flex-shrink-0 rounded-md border border-neutral-200 object-cover"
+                    />
+                  ))}
+                </div>
+              )}
               <div className="grid gap-2 text-sm sm:grid-cols-2">
                 <div>
                   <span className="text-neutral-500">Barcode</span>
-                  <div className="font-mono text-base">{product.barcode}</div>
+                  <div className="font-mono text-base break-all">{product.barcode}</div>
                 </div>
                 <div>
                   <span className="text-neutral-500">Brand</span>
-                  <div>{product.brand || '—'}</div>
+                  <div className="break-words">{product.brand || '—'}</div>
                 </div>
                 <div>
                   <span className="text-neutral-500">Type</span>
-                  <div>{product.type || '—'}</div>
+                  <div className="break-words">{product.type || '—'}</div>
                 </div>
                 <div>
                   <span className="text-neutral-500">Condition</span>
-                  <div>{product.condition || '—'}</div>
+                  <div className="break-words">{product.condition || '—'}</div>
                 </div>
                 <div>
                   <span className="text-neutral-500">Selling Price</span>
@@ -258,7 +270,7 @@ export default function ScanPage() {
                 {product.acquiredFrom && (
                   <div>
                     <span className="text-neutral-500">Acquired From</span>
-                    <div>{product.acquiredFrom}</div>
+                    <div className="break-words">{product.acquiredFrom}</div>
                   </div>
                 )}
                 {(product as any).customerPhone && (

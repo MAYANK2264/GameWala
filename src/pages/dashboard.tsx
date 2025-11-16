@@ -75,33 +75,35 @@ export function Dashboard() {
   }, [repairs])
 
   return (
-    <div className="container-px py-6">
-      {/* Logo image removed as requested */}
-      <div className="grid grid-cols-1 gap-4 mb-6 md:grid-cols-2 lg:grid-cols-4">
+    <div className="container-px py-4 sm:py-6">
+      <h1 className="text-2xl font-semibold mb-4 sm:mb-6">Dashboard</h1>
+      
+      {/* Main KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
         <Link
           to="/inventory"
-          className="card flex flex-col justify-between gap-2 rounded-lg p-6 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 hover:shadow-lg transition"
+          className="card flex flex-col justify-between gap-2 rounded-lg p-4 sm:p-6 hover:shadow-md transition-shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
           aria-label="View inventory"
         >
-          <div className="text-sm text-neutral-600 mb-2">Total Inventory</div>
-          <div className="text-2xl font-bold">{loading ? '…' : totalInventory}</div>
+          <div className="text-xs sm:text-sm text-neutral-600">Total Inventory</div>
+          <div className="text-xl sm:text-2xl font-bold text-neutral-900">{loading ? '…' : totalInventory}</div>
         </Link>
         <Link
           to="/sales-records"
-          className="card flex flex-col justify-between gap-2 rounded-lg p-6 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 hover:shadow-lg transition"
+          className="card flex flex-col justify-between gap-2 rounded-lg p-4 sm:p-6 hover:shadow-md transition-shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
           aria-label="View sales records"
         >
-          <div className="text-sm text-neutral-600 mb-2">Total Sold</div>
-          <div className="text-2xl font-bold">{loading ? '…' : totalSold}</div>
+          <div className="text-xs sm:text-sm text-neutral-600">Total Sold</div>
+          <div className="text-xl sm:text-2xl font-bold text-neutral-900">{loading ? '…' : totalSold}</div>
         </Link>
         <Link
           to="/reports"
-          className="card flex flex-col justify-between gap-2 rounded-lg p-6 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 hover:shadow-lg transition"
+          className="card flex flex-col justify-between gap-2 rounded-lg p-4 sm:p-6 hover:shadow-md transition-shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
           aria-label="View reports"
         >
-          <div className="text-sm text-neutral-600 mb-2">Total Profit</div>
+          <div className="text-xs sm:text-sm text-neutral-600">Total Profit</div>
           <div
-            className={`text-2xl font-bold ${
+            className={`text-xl sm:text-2xl font-bold ${
               !loading && totalProfit > 0 ? 'text-green-600' : !loading && totalProfit === 0 ? 'text-green-600' : 'text-red-600'
             }`}
           >
@@ -110,42 +112,48 @@ export function Dashboard() {
         </Link>
         <Link
           to="/repairs"
-          className="card flex flex-col justify-between gap-2 rounded-lg p-6 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400 hover:shadow-lg transition"
+          className="card flex flex-col justify-between gap-2 rounded-lg p-4 sm:p-6 hover:shadow-md transition-shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-400"
           aria-label="View repairs list"
         >
-          <div className="text-sm text-neutral-600 mb-2">Repairs In Progress</div>
-          <div className="text-2xl font-bold">{loading ? '…' : repairsInProgress}</div>
+          <div className="text-xs sm:text-sm text-neutral-600">Repairs In Progress</div>
+          <div className="text-xl sm:text-2xl font-bold text-neutral-900">{loading ? '…' : repairsInProgress}</div>
         </Link>
-        <div className="card p-6">
-          <div className="text-xs text-neutral-600 mb-1">Top Type Sold</div>
-          <div className="text-lg font-bold">{topType}</div>
+      </div>
+
+      {/* Secondary Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
+        <div className="card flex flex-col justify-between gap-2 rounded-lg p-4 sm:p-6">
+          <div className="text-xs sm:text-sm text-neutral-600">Top Type Sold</div>
+          <div className="text-lg sm:text-xl font-bold text-neutral-900 truncate">{topType}</div>
         </div>
-        <div className="card p-6">
-          <div className="text-xs text-neutral-600 mb-1">Top Seller</div>
-          <div className="text-lg font-bold">{topSeller}</div>
+        <div className="card flex flex-col justify-between gap-2 rounded-lg p-4 sm:p-6">
+          <div className="text-xs sm:text-sm text-neutral-600">Top Seller</div>
+          <div className="text-lg sm:text-xl font-bold text-neutral-900 truncate">{topSeller}</div>
         </div>
-        <div className="card p-6">
-          <div className="text-sm text-neutral-600 mb-2">Total Loss</div>
-          <div className="text-2xl font-bold text-red-600">{loading ? '…' : `₹${totalLoss}`}</div>
+        <div className="card flex flex-col justify-between gap-2 rounded-lg p-4 sm:p-6">
+          <div className="text-xs sm:text-sm text-neutral-600">Total Loss</div>
+          <div className="text-xl sm:text-2xl font-bold text-red-600">{loading ? '…' : `₹${totalLoss}`}</div>
         </div>
       </div>
-      <div className="my-6 grid gap-4 md:grid-cols-2">
-        <div className="card flex flex-col p-4">
-          <div className="text-xs text-neutral-600 mb-2">Sales Last 7d</div>
-          <ResponsiveContainer width="100%" height={70}>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+        <div className="card flex flex-col rounded-lg p-4 sm:p-6">
+          <div className="text-xs sm:text-sm text-neutral-600 mb-3">Sales Last 7 Days</div>
+          <ResponsiveContainer width="100%" height={120}>
             <LineChart data={salesTrend}>
               <Line type="monotone" dataKey="count" stroke="#4f46e5" strokeWidth={2} dot={false} />
-              <XAxis dataKey="date" />
+              <XAxis dataKey="date" tick={{ fontSize: 12 }} />
               <Tooltip />
             </LineChart>
           </ResponsiveContainer>
         </div>
-        <div className="card flex flex-col p-4">
-          <div className="text-xs text-neutral-600 mb-2">Repairs Last 7d</div>
-          <ResponsiveContainer width="100%" height={70}>
+        <div className="card flex flex-col rounded-lg p-4 sm:p-6">
+          <div className="text-xs sm:text-sm text-neutral-600 mb-3">Repairs Last 7 Days</div>
+          <ResponsiveContainer width="100%" height={120}>
             <LineChart data={repairsTrend}>
               <Line type="monotone" dataKey="count" stroke="#10b981" strokeWidth={2} dot={false} />
-              <XAxis dataKey="date" />
+              <XAxis dataKey="date" tick={{ fontSize: 12 }} />
               <Tooltip />
             </LineChart>
           </ResponsiveContainer>

@@ -1,14 +1,16 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import TopNav from './components/TopNav'
 import { Login, Dashboard, InventoryPage, Repairs, ScanPage, Sales, Reports, Settings } from './pages'
+import { AppLockScreen } from './components/AppLock'
 import './index.css'
 import PrivateRoute from './components/PrivateRoute'
 
 function App() {
   return (
     <div className="min-h-screen flex flex-col">
+      <AppLockScreen />
       <TopNav />
-      <main className="flex-1 container-px py-6" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 4rem)' }}>
+      <main className="flex-1 container-px py-4 sm:py-6" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 4rem)' }}>
         <div className="mx-auto max-w-7xl">
           <div className="space-y-4">
             <Routes>
@@ -21,7 +23,7 @@ function App() {
               <Route path="/sales" element={<PrivateRoute><Sales /></PrivateRoute>} />
               <Route path="/reports" element={<PrivateRoute><Reports /></PrivateRoute>} />
               <Route path="/settings" element={<PrivateRoute allowedRoles={["owner"]}><Settings /></PrivateRoute>} />
-              <Route path="*" element={<div className="card p-6">Not Found</div>} />
+              <Route path="*" element={<div className="card p-4 sm:p-6">Not Found</div>} />
             </Routes>
           </div>
         </div>
