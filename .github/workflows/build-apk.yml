@@ -1,0 +1,35 @@
+name: Build Android APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web app
+        run: npm run build
+
+      - name: Build Android APK using Bubblewrap
+        run: |
+          npm install -g @bubblewrap/cli
+          npx bubblewrap init --manifest=https://amewala.web.app/manifest.json --appVersionName=1.0.0 --appVersionCode=1 --dir=.
+          npx bubblewrap build
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: GameWala-APK
+          path: ./app-release-signed.apk

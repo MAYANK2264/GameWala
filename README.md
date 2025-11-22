@@ -1,44 +1,62 @@
 # GameWala
 
-## Overview
-GameWala is a web‑based application that allows users to explore, manage, and share information about games. It provides a clean, responsive UI with modern design aesthetics, making it easy for users to browse game collections, view details, and interact with the platform.
+GameWala is a modern web application built with React, TypeScript, and Vite, designed to manage game-related activities. It features a dynamic dashboard, drag-and-drop functionality, and QR code integration.
 
-## Key Features
-- **Responsive Design** – Works seamlessly on desktop and mobile devices.
-- **Dynamic Game Listings** – Browse games with rich metadata and images.
-- **User Interaction** – Search, filter, and sort games.
-- **Deployment** – Hosted live (URL to be added).
+## 🚀 Live Demo
 
-## Screenshots
-Below are screenshots of the application UI:
+Check out the live application here: [GameWala Web App](https://amewala.web.app/)
 
-![Screenshot 1](review%20imgs/1.png)
-![Screenshot 2](review%20imgs/2.png)
-![Screenshot 3](review%20imgs/3.png)
-![Screenshot 4](review%20imgs/4.png)
-![Screenshot 5](review%20imgs/5.png)
-![Screenshot 6](review%20imgs/6.png)
-![Screenshot 7](review%20imgs/7.png)
+## 📸 Screenshots
 
-## Installation
-1. Clone the repository:
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px;">
+  <img src="assets/screenshots/1.png" alt="Screenshot 1" width="100%">
+  <img src="assets/screenshots/2.png" alt="Screenshot 2" width="100%">
+  <img src="assets/screenshots/3.png" alt="Screenshot 3" width="100%">
+  <img src="assets/screenshots/4.png" alt="Screenshot 4" width="100%">
+  <img src="assets/screenshots/5.png" alt="Screenshot 5" width="100%">
+  <img src="assets/screenshots/6.png" alt="Screenshot 6" width="100%">
+  <img src="assets/screenshots/7.png" alt="Screenshot 7" width="100%">
+</div>
+
+## ✨ Features
+
+- **Dashboard Analytics**: Visualized data using Recharts.
+- **Drag & Drop Interface**: Smooth interactions powered by `@hello-pangea/dnd`.
+- **QR Code Support**: Generate and scan QR codes with `html5-qrcode` and `jsbarcode`.
+- **Authentication**: Secure login and data management via Firebase.
+- **Responsive Design**: Styled with TailwindCSS for a seamless experience across devices.
+
+## 🛠️ Tech Stack
+
+- **Frontend**: React 19, TypeScript, Vite
+- **Styling**: TailwindCSS, PostCSS
+- **State/Logic**: React Router DOM, React Hooks
+- **Backend/BaaS**: Firebase
+- **Utilities**: ESLint, Prettier
+
+## 📦 Installation
+
+1. **Clone the repository**
    ```bash
    git clone https://github.com/MAYANK2264/GameWala.git
-   ```
-2. Navigate to the project directory:
-   ```bash
    cd GameWala
    ```
-3. Install dependencies (if any) and serve the static files using a web server of your choice.
 
-## Usage
-Open the `index.html` (or the hosted site) in a web browser to explore the game catalog.
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-## Deployment
-The site is hosted at **https://amewala.web.app/**. Replace the placeholder with the actual URL once available.
+3. **Start the development server**
+   ```bash
+   npm run dev
+   ```
 
-## Contributing
-Contributions are welcome! Please fork the repository, create a feature branch, and submit a pull request.
+4. **Build for production**
+   ```bash
+   npm run build
+   ```
 
-## License
-This project is licensed under the MIT License – see the `LICENSE` file for details.
+## 📄 License
+
+This project is licensed under the MIT License.
